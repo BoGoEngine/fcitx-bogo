@@ -2,31 +2,6 @@
 #include <fcitx/ime.h>
 #include <fcitx/instance.h>
 
-static void* FcitxBogoCreate(FcitxInstance* instance);
-static void FcitxBogoDestroy(void* arg);
-
-FCITX_EXPORT_API
-FcitxIMClass ime = {
-    FcitxBogoCreate,
-    FcitxBogoDestroy
-};
-FCITX_EXPORT_API
-int ABI_VERSION = FCITX_ABI_VERSION; 
-
-
-// Public interface functions
-static boolean FcitxUnikeyInit(void* arg);
-static INPUT_RETURN_VALUE FcitxBogoDoInput(void* arg, FcitxKeySym sym, unsigned int state);
-static void FcitxUnikeyReset(void* arg);
-static void FcitxUnikeySave(void* arg);
-static void ReloadConfigFcitxUnikey(void* arg);
-
-
-typedef struct {
-    // The handle to talk to fcitx
-    FcitxInstance *fcitx;
-    int nothing;
-} Bogo;
 
 #define LOGGING
 
@@ -37,7 +12,42 @@ typedef struct {
 #endif
 
 
-void* FcitxBogoCreate(FcitxInstance* instance)
+/*
+ * fcitx-bogo is a shared library that will be dynamically linked
+ * by the fctix daemon. When it does, it looks for the 'ime' symbol,
+ * which it will use to find the setup and teardown functions
+ * for the library.
+ */
+
+static void* FcitxBogoSetup(FcitxInstance* instance);
+static void FcitxBogoTeardown(void* arg);
+
+FCITX_EXPORT_API
+FcitxIMClass ime = {
+    FcitxBogoSetup,
+    FcitxBogoTeardown
+};
+
+FCITX_EXPORT_API
+int ABI_VERSION = FCITX_ABI_VERSION; 
+
+
+typedef struct {
+    // The handle to talk to fcitx
+    FcitxInstance *fcitx;
+    int nothing;
+} Bogo;
+
+
+// Public interface functions
+static boolean FcitxUnikeyInit(void* arg);
+static INPUT_RETURN_VALUE FcitxBogoDoInput(void* arg, FcitxKeySym sym, unsigned int state);
+static void FcitxUnikeyReset(void* arg);
+static void FcitxUnikeySave(void* arg);
+static void ReloadConfigFcitxUnikey(void* arg);
+
+
+void* FcitxBogoSetup(FcitxInstance* instance)
 {
     Bogo *bogo = malloc(sizeof(Bogo));
     memset(bogo, 0, sizeof(Bogo));
@@ -55,20 +65,20 @@ void* FcitxBogoCreate(FcitxInstance* instance)
     iface.Save = FcitxUnikeySave;
 
     FcitxInstanceRegisterIMv2(
-        instance,
-        bogo,
-        "bogo",
-        "Bogo",
-        "unikey",
-        iface,
-        1,
-        "vi"
+        instance,   // fcitx instance
+        bogo,       // IME object
+        "bogo",     // unique name
+        "Bogo",     // human-readable name
+        "bogo",     // icon name
+        iface,      // interface for the IME object
+        1,          // priority
+        "vi"        // language
     );
 
     return bogo;
 }
 
-void FcitxBogoDestroy(void* arg)
+void FcitxBogoTeardown(void* arg)
 {
     LOG("Destroyed\n");
 }
