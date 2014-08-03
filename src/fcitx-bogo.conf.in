@@ -1,0 +1,9 @@
+[Addon]
+Name=fcitx-bogo
+_GeneralName=BoGo
+_Comment=Bogo wrapper for Fcitx
+Category=InputMethod
+Enabled=True
+Library=fcitx-bogo.so
+Type=SharedLibrary
+IMRegisterMethod=ConfigFile

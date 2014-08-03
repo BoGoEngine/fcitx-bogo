@@ -1,0 +1,7 @@
+[InputMethod]
+UniqueName=bogo
+_Name=BoGo
+IconName=bogo
+Priority=1
+LangCode=vi
+Parent=fcitx-bogo
