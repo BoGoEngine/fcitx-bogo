@@ -1,10 +1,10 @@
-
 include_directories (
 ${FCITX4_FCITX_INCLUDE_DIRS}
 ${FCITX4_FCITX_CONFIG_INCLUDE_DIRS}
 ${FCITX4_FCITX_UTILS_INCLUDE_DIRS}
 ${PROJECT_BINARY_DIR}
 ${LIBICONV_INCLUDE_DIR}
+${PYTHON_INCLUDE_DIRS}
 )
 
 set(fcitx_bogo_sources
@@ -18,3 +18,5 @@ fcitx_add_addon_full(bogo
    DESC
    IM_CONFIG bogo.conf
    )
+
+target_link_libraries(fcitx-bogo ${PYTHON_LIBRARIES})
