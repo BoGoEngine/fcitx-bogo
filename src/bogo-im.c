@@ -66,6 +66,7 @@ static void BogoOnSave(Bogo *self);
 static void BogoOnConfig(Bogo *self);
 
 boolean SupportSurroundingText(Bogo *self);
+INPUT_RETURN_VALUE CommitString(Bogo *self, char *str);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -169,89 +170,94 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int stat
 
         char *result = strdup(PyUnicode_AsUTF8(pyResult));
         Py_DECREF(pyResult);
-        
-        // Find the number of same bytes
-        int byte_offset = 0;
-        int same_chars = 0;
-        int char_len = 0;
-        
-        while (true) {
-            char_len = fcitx_utf8_char_len(
-                self->previous_result + byte_offset);
 
-            if (strncmp(self->previous_result + byte_offset,
-                        result + byte_offset, char_len) != 0) {
-                break;
-            }
-            
-            byte_offset += char_len;
-            same_chars++;
-        }
-        
-//        LOG("%s %s %d\n", self->previous_result, result, diff_offset);
-        
-        // The number of backspaces to send is the number of UTF8 chars
-        // at the end of previous_result that differ from result.
-        int num_backspace = 0;
-        num_backspace = \
-            fcitx_utf8_strlen(self->previous_result) - same_chars;
-        
-        LOG("num_backspace: %d\n", num_backspace);
-        
-        char *string_to_commit = result + byte_offset;
-        
-        FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
-        LOG("autocomplete: %d\n", ic->contextCaps & (CAPACITY_SPELLCHECK | CAPACITY_WORD_COMPLETION));
-
-        if (SupportSurroundingText(self)) {
-            LOG("Delete surrounding text\n");
-            FcitxInstanceDeleteSurroundingText(
-                        self->fcitx,
-                        ic,
-                        -num_backspace,
-                        num_backspace);
-        } else {
-            LOG("Send backspaces\n");
-            int i = 0;
-            for (; i < num_backspace; ++i) {
-                FcitxInstanceForwardKey(
-                            self->fcitx,
-                            ic,
-                            FCITX_PRESS_KEY,
-                            FcitxKey_BackSpace,
-                            0);
-                
-                FcitxInstanceForwardKey(
-                            self->fcitx,
-                            ic,
-                            FCITX_RELEASE_KEY,
-                            FcitxKey_BackSpace,
-                            0);
-            }
-
-            if (num_backspace > 0) {
-                struct timespec sleepTime = {
-                    0,
-                    20 * 1000000 // 200 miliseconds
-                };
-
-                nanosleep(&sleepTime, NULL);
-            }
-        }
-
-        FcitxInstanceCommitString(
-                    self->fcitx,
-                    FcitxInstanceGetCurrentIC(self->fcitx),
-                    string_to_commit);
-
-        free(self->previous_result);
-        self->previous_result = result;
-        
-        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        return CommitString(self, result);
     }
 
     BogoOnReset(self);
     return IRV_TO_PROCESS;
+}
+
+
+INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
+    // Find the number of same chars between str and previous_result
+    int byte_offset = 0;
+    int same_chars = 0;
+    int char_len = 0;
+    
+    while (true) {
+        char_len = fcitx_utf8_char_len(
+            self->previous_result + byte_offset);
+
+        if (strncmp(self->previous_result + byte_offset,
+                    str + byte_offset, char_len) != 0) {
+            // same_chars and byte_offset are the results of this
+            // loop.
+            break;
+        }
+
+        byte_offset += char_len;
+        same_chars++;
+    }
+
+    // The number of backspaces to send is the number of UTF8 chars
+    // at the end of previous_result that differ from result.
+    int num_backspace = 0;
+    num_backspace = \
+        fcitx_utf8_strlen(self->previous_result) - same_chars;
+
+    LOG("num_backspace: %d\n", num_backspace);
+
+    char *string_to_commit = str + byte_offset;
+
+    FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
+
+    if (SupportSurroundingText(self)) {
+        LOG("Delete surrounding text\n");
+        FcitxInstanceDeleteSurroundingText(
+                    self->fcitx,
+                    ic,
+                    -num_backspace,
+                    num_backspace);
+    } else {
+        LOG("Send backspaces\n");
+        int i = 0;
+        for (; i < num_backspace; ++i) {
+            FcitxInstanceForwardKey(
+                        self->fcitx,
+                        ic,
+                        FCITX_PRESS_KEY,
+                        FcitxKey_BackSpace,
+                        0);
+            
+            FcitxInstanceForwardKey(
+                        self->fcitx,
+                        ic,
+                        FCITX_RELEASE_KEY,
+                        FcitxKey_BackSpace,
+                        0);
+        }
+
+        // Delay to make sure all the backspaces have been processed.
+        if (num_backspace > 0) {
+            struct timespec sleepTime = {
+                0,
+                20 * 1000000 // 20 miliseconds
+            };
+
+            nanosleep(&sleepTime, NULL);
+        }
+    }
+
+    FcitxInstanceCommitString(
+                self->fcitx,
+                FcitxInstanceGetCurrentIC(self->fcitx),
+                string_to_commit);
+
+    free(self->previous_result);
+    self->previous_result = str;
+
+    return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
 }
 
 
