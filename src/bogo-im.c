@@ -153,17 +153,20 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int stat
         char *sym_utf8 = malloc(UTF8_MAX_LENGTH + 1);
         memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
         FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
-        
-        // FIXME: Realloc can fail
+
+        // Append the key to raw_string
         if (strlen(self->raw_string) + strlen(sym_utf8) > self->raw_string_len) {
+            // FIXME: Realloc can fail
             realloc(self->raw_string, self->raw_string_len * 2);
         }
         strcat(self->raw_string, sym_utf8);
         LOG("keysym: %s\n", sym_utf8);
         free(sym_utf8);
-        
+
+        // Send the raw key sequence to bogo-python to get the
+        // converted string.
         PyObject *args, *pyResult;
-        
+
         args = Py_BuildValue("(s)", self->raw_string);
         pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
         Py_DECREF(args);
