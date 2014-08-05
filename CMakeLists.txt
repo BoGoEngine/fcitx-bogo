@@ -20,7 +20,6 @@ set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--as-needed ${CMAKE_MODULE_LINKER_FLAGS}")
 
 find_package(Fcitx 4.2.8 REQUIRED)
 find_package(Libiconv REQUIRED)
-find_package(Gettext REQUIRED)
 find_package(PythonLibs REQUIRED)
 
 configure_file(config.h.in config.h)
