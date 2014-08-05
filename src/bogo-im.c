@@ -4,6 +4,7 @@
 #include <fcitx-utils/utf8.h>
 #include <iconv.h>
 #include <Python.h>
+#include <time.h>
 
 #include "config.h"
 
@@ -59,10 +60,12 @@ int FcitxUnikeyUcs4ToUtf8(Bogo *self, const unsigned int c, char buf[UTF8_MAX_LE
 
 // Public interface functions
 static boolean BogoOnInit(Bogo *self);
-static INPUT_RETURN_VALUE BogoOnKeyEvent(void* arg, FcitxKeySym sym, unsigned int state);
+static INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int state);
 static void BogoOnReset(Bogo *self);
 static void BogoOnSave(Bogo *self);
 static void BogoOnConfig(Bogo *self);
+
+boolean SupportSurroundingText(Bogo *self);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -77,7 +80,7 @@ void* FcitxBogoSetup(FcitxInstance* instance)
 
     iface.Init = BogoOnInit;
     iface.ResetIM = BogoOnReset;
-    iface.DoInput = BogoOnKeyEvent;
+    iface.DoInput = BogoOnKeyPress;
     iface.ReloadConfig = BogoOnConfig;
     iface.Save = BogoOnSave;
 
@@ -101,12 +104,11 @@ void* FcitxBogoSetup(FcitxInstance* instance)
         bogo->conv = iconv_open("utf-8", "ucs-4be");
     else
         bogo->conv = iconv_open("utf-8", "ucs-4le");
-    
-    Py_SetProgramName(L"fcitx-bogo");  /* optional but recommended */
+
+    // Load the bogo-python engine
+    Py_SetProgramName(L"fcitx-bogo");
     Py_Initialize();
-    PyRun_SimpleString("from time import time,ctime\n"
-                       "print('Today is', ctime(time()))\n");
-    
+
     PyObject *moduleName, *bogoModule;
     moduleName = PyUnicode_FromString("bogo");
     bogoModule = PyImport_Import(moduleName);
@@ -126,92 +128,8 @@ void FcitxBogoTeardown(void* arg)
 boolean BogoOnInit(Bogo *self)
 {
     LOG("Init\n");
-    
     BogoOnReset(self);
-    
     return true;
-}
-
-INPUT_RETURN_VALUE BogoOnKeyEvent(void* arg, FcitxKeySym sym, unsigned int state)
-{
-    Bogo *self = (Bogo *) arg;
-    
-    if (sym >= FcitxKey_space && sym <=FcitxKey_asciitilde) {
-        // Convert the keysym to UTF8
-        char *sym_utf8 = malloc(UTF8_MAX_LENGTH + 1);
-        memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
-        FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
-        
-        // FIXME: Realloc can fail
-        if (strlen(self->raw_string) + strlen(sym_utf8) > self->raw_string_len) {
-            realloc(self->raw_string, self->raw_string_len * 2);
-        }
-        strcat(self->raw_string, sym_utf8);
-        
-        PyObject *args, *pyResult;
-        
-        args = Py_BuildValue("(s)", self->raw_string);
-        pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
-        Py_DECREF(args);
-
-        char *result = strdup(PyUnicode_AsUTF8(pyResult));
-        Py_DECREF(pyResult);
-        
-        // Find the number of different chars
-        int i = 0;
-        int diff_offset = -1;
-        for (; i < strlen(self->previous_result); ++i) {
-            if (self->previous_result[i] != result[i]) {
-                break;
-            }
-        }
-        diff_offset = i;
-        
-        // The number of backspaces to send is the number of UTF8 chars
-        // at the end of previous_result that differ from result.
-        int num_backspace = 0;
-        num_backspace = fcitx_utf8_strlen(self->previous_result + diff_offset);
-        
-        LOG("num_backspace: %d\n", num_backspace);
-        for (i = 0; i < num_backspace; ++i) {
-            FcitxInstanceForwardKey(
-                        self->fcitx,
-                        FcitxInstanceGetCurrentIC(self->fcitx),
-                        FCITX_PRESS_KEY,
-                        FcitxKey_BackSpace,
-                        0);
-            
-            FcitxInstanceForwardKey(
-                        self->fcitx,
-                        FcitxInstanceGetCurrentIC(self->fcitx),
-                        FCITX_RELEASE_KEY,
-                        FcitxKey_BackSpace,
-                        0);
-        }
-        
-//        FcitxInstanceDeleteSurroundingText(
-//                    self->fcitx,
-//                    FcitxInstanceGetCurrentIC(self->fcitx),
-//                    -num_backspace,
-//                    num_backspace);
-
-        LOG("%d %d\n", strlen(self->previous_result), diff_offset);
-        LOG("string to commit: %s\n", result + diff_offset);
-        
-        FcitxInstanceCommitString(
-                    self->fcitx,
-                    FcitxInstanceGetCurrentIC(self->fcitx),
-                    result + diff_offset);
-        
-        LOG("%s %s\n", sym_utf8, result);
-        
-        free(self->previous_result);
-        self->previous_result = result;
-        
-        return IRV_TO_PROCESS;
-    }
-    
-    return IRV_FLAG_FORWARD_KEY;
 }
 
 void BogoOnReset(Bogo *self)
@@ -223,6 +141,119 @@ void BogoOnReset(Bogo *self)
     self->raw_string[0] = 0;
     self->raw_string_len = 512;
 }
+
+
+INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int state)
+{
+    LOG("%d\n", sym == FcitxKey_BackSpace);
+
+    if (sym > FcitxKey_space && sym <=FcitxKey_asciitilde) {
+        // Convert the keysym to UTF8
+        char *sym_utf8 = malloc(UTF8_MAX_LENGTH + 1);
+        memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
+        FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
+        
+        // FIXME: Realloc can fail
+        if (strlen(self->raw_string) + strlen(sym_utf8) > self->raw_string_len) {
+            realloc(self->raw_string, self->raw_string_len * 2);
+        }
+        strcat(self->raw_string, sym_utf8);
+        LOG("keysym: %s\n", sym_utf8);
+        free(sym_utf8);
+        
+        PyObject *args, *pyResult;
+        
+        args = Py_BuildValue("(s)", self->raw_string);
+        pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
+        Py_DECREF(args);
+
+        char *result = strdup(PyUnicode_AsUTF8(pyResult));
+        Py_DECREF(pyResult);
+        
+        // Find the number of same bytes
+        int byte_offset = 0;
+        int same_chars = 0;
+        int char_len = 0;
+        
+        while (true) {
+            char_len = fcitx_utf8_char_len(
+                self->previous_result + byte_offset);
+
+            if (strncmp(self->previous_result + byte_offset,
+                        result + byte_offset, char_len) != 0) {
+                break;
+            }
+            
+            byte_offset += char_len;
+            same_chars++;
+        }
+        
+//        LOG("%s %s %d\n", self->previous_result, result, diff_offset);
+        
+        // The number of backspaces to send is the number of UTF8 chars
+        // at the end of previous_result that differ from result.
+        int num_backspace = 0;
+        num_backspace = \
+            fcitx_utf8_strlen(self->previous_result) - same_chars;
+        
+        LOG("num_backspace: %d\n", num_backspace);
+        
+        char *string_to_commit = result + byte_offset;
+        
+        FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
+        LOG("autocomplete: %d\n", ic->contextCaps & (CAPACITY_SPELLCHECK | CAPACITY_WORD_COMPLETION));
+
+        if (SupportSurroundingText(self)) {
+            LOG("Delete surrounding text\n");
+            FcitxInstanceDeleteSurroundingText(
+                        self->fcitx,
+                        ic,
+                        -num_backspace,
+                        num_backspace);
+        } else {
+            LOG("Send backspaces\n");
+            int i = 0;
+            for (; i < num_backspace; ++i) {
+                FcitxInstanceForwardKey(
+                            self->fcitx,
+                            ic,
+                            FCITX_PRESS_KEY,
+                            FcitxKey_BackSpace,
+                            0);
+                
+                FcitxInstanceForwardKey(
+                            self->fcitx,
+                            ic,
+                            FCITX_RELEASE_KEY,
+                            FcitxKey_BackSpace,
+                            0);
+            }
+
+            if (num_backspace > 0) {
+                struct timespec sleepTime = {
+                    0,
+                    20 * 1000000 // 200 miliseconds
+                };
+
+                nanosleep(&sleepTime, NULL);
+            }
+        }
+
+        FcitxInstanceCommitString(
+                    self->fcitx,
+                    FcitxInstanceGetCurrentIC(self->fcitx),
+                    string_to_commit);
+
+        free(self->previous_result);
+        self->previous_result = result;
+        
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    }
+
+    BogoOnReset(self);
+    return IRV_TO_PROCESS;
+}
+
 
 void BogoOnSave(Bogo *self)
 {
@@ -248,5 +279,32 @@ int FcitxUnikeyUcs4ToUtf8(Bogo *self, const unsigned int c, char buf[UTF8_MAX_LE
     IconvStr src = (IconvStr) str;
     iconv(self->conv, &src, &ucslen, &p, &len);
     return (UTF8_MAX_LENGTH - len) / sizeof(char);
+}
+
+boolean SupportSurroundingText(Bogo *self)
+{
+    char *badPrograms[] = {
+        "firefox", "konsole"
+    };
+    
+    FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
+    FcitxInputContext2 *ic2 = (FcitxInputContext2 *) ic;
+    
+    char *prgname = ic2->prgname;
+    LOG("prgname: %s\n", prgname);
+
+    boolean support = ic->contextCaps & CAPACITY_SURROUNDING_TEXT;
+
+    if (support) {
+        int i;
+        for (i = 0; i < sizeof(badPrograms) / sizeof(char *); i++) {
+            if (strcmp(badPrograms[i], prgname) == 0) {
+                support = false;
+                break;
+            }
+        }
+    }
+
+    return support;
 }
 
