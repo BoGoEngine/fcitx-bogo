@@ -280,7 +280,7 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
         if (num_backspace > 0) {
             struct timespec sleepTime = {
                 0,
-                20 * 1000000 // 20 miliseconds
+                30 * 1000000 // 30 miliseconds
             };
 
             nanosleep(&sleepTime, NULL);
