@@ -181,9 +181,11 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
 {
     if (CanProcess(sym, state)) {
         // Convert the keysym to UTF8
-        char *sym_utf8 = malloc(UTF8_MAX_LENGTH + 1);
+        char sym_utf8[UTF8_MAX_LENGTH + 1];
         memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
+
         FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
+        LOG("keysym: %s\n", sym_utf8);
 
         // Append the key to raw_string
         if (strlen(self->raw_string) + strlen(sym_utf8) > 
@@ -195,8 +197,6 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             }
         }
         strcat(self->raw_string, sym_utf8);
-        LOG("keysym: %s\n", sym_utf8);
-        free(sym_utf8);
 
         // Send the raw key sequence to bogo-python to get the
         // converted string.
