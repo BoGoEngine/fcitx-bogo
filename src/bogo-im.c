@@ -56,12 +56,16 @@ typedef struct {
     char *previous_result;
 } Bogo;
 
-int FcitxUnikeyUcs4ToUtf8(Bogo *self, const unsigned int c, char buf[UTF8_MAX_LENGTH + 1]);
+int FcitxUnikeyUcs4ToUtf8(Bogo *self,
+                          const unsigned int c,
+                          char buf[UTF8_MAX_LENGTH + 1]);
 
 
 // Public interface functions
 static boolean BogoOnInit(Bogo *self);
-static INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int state);
+static INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
+                                         FcitxKeySym sym,
+                                         unsigned int state);
 static void BogoOnReset(Bogo *self);
 static void BogoOnSave(Bogo *self);
 static void BogoOnConfig(Bogo *self);
@@ -117,7 +121,8 @@ void* FcitxBogoSetup(FcitxInstance* instance)
     bogoModule = PyImport_Import(moduleName);
     Py_DECREF(moduleName);
 
-    bogo_process_sequence_func = PyObject_GetAttrString(bogoModule, "process_sequence");
+    bogo_process_sequence_func = \
+        PyObject_GetAttrString(bogoModule, "process_sequence");
 
     return bogo;
 }
