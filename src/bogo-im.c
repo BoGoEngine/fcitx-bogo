@@ -265,7 +265,9 @@ void BogoOnConfig(Bogo *self)
     LOG("Reload config\n");
 }
 
-int FcitxUnikeyUcs4ToUtf8(Bogo *self, const unsigned int c, char buf[UTF8_MAX_LENGTH + 1])
+int FcitxUnikeyUcs4ToUtf8(Bogo *self,
+                          const unsigned int c,
+                          char buf[UTF8_MAX_LENGTH + 1])
 {
     unsigned int str[2];
     str[0] = c;
