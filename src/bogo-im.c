@@ -68,6 +68,7 @@ static void BogoOnConfig(Bogo *self);
 
 boolean SupportSurroundingText(Bogo *self);
 INPUT_RETURN_VALUE CommitString(Bogo *self, char *str);
+char *ProgramName(Bogo *self);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -326,6 +327,15 @@ int FcitxUnikeyUcs4ToUtf8(Bogo *self,
     return (UTF8_MAX_LENGTH - len) / sizeof(char);
 }
 
+
+char *ProgramName(Bogo *self)
+{
+    FcitxInputContext2 *ic = 
+        (FcitxInputContext2 *) FcitxInstanceGetCurrentIC(self->fcitx);
+    return ic->prgname;
+}
+
+
 boolean SupportSurroundingText(Bogo *self)
 {
     char *badPrograms[] = {
@@ -333,9 +343,8 @@ boolean SupportSurroundingText(Bogo *self)
     };
     
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
-    FcitxInputContext2 *ic2 = (FcitxInputContext2 *) ic;
     
-    char *prgname = ic2->prgname;
+    char *prgname = ProgramName(self);
     LOG("prgname: %s\n", prgname);
 
     boolean support = ic->contextCaps & CAPACITY_SURROUNDING_TEXT;
