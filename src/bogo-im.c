@@ -9,6 +9,7 @@
 #include "config.h"
 
 #define LOGGING
+#define INITIAL_STRING_LEN 128
 
 #ifdef LOGGING
     #define LOG(fmt...) printf(fmt)
@@ -126,21 +127,36 @@ void FcitxBogoTeardown(void* arg)
     Py_Finalize();
 }
 
+
+void BogoInitialize(Bogo *self) {
+    self->previous_result = malloc(1);
+    self->previous_result[0] = 0;
+    self->raw_string = malloc(INITIAL_STRING_LEN);
+    self->raw_string[0] = 0;
+    self->raw_string_len = INITIAL_STRING_LEN;
+}
+
+
 boolean BogoOnInit(Bogo *self)
 {
     LOG("Init\n");
-    BogoOnReset(self);
+    BogoInitialize(self);
     return true;
 }
+
 
 void BogoOnReset(Bogo *self)
 {
     LOG("Reset\n");
-    self->previous_result = malloc(1);
-    self->previous_result[0] = 0;
-    self->raw_string = malloc(512);
-    self->raw_string[0] = 0;
-    self->raw_string_len = 512;
+    if (self->previous_result) {
+        free(self->previous_result);
+    }
+    
+    if (self->raw_string) {
+        free(self->raw_string);
+    }
+    
+    BogoInitialize(self);
 }
 
 
