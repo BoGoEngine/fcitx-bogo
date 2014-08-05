@@ -174,7 +174,9 @@ boolean CanProcess(FcitxKeySym sym, unsigned int state)
 }
 
 
-INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int state)
+INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
+                                  FcitxKeySym sym,
+                                  unsigned int state)
 {
     if (CanProcess(sym, state)) {
         // Convert the keysym to UTF8
