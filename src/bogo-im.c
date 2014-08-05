@@ -185,9 +185,13 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
 
         // Append the key to raw_string
-        if (strlen(self->raw_string) + strlen(sym_utf8) > self->raw_string_len) {
-            // FIXME: Realloc can fail
-            realloc(self->raw_string, self->raw_string_len * 2);
+        if (strlen(self->raw_string) + strlen(sym_utf8) > 
+                self->raw_string_len) {
+            char *tmp = realloc(self->raw_string,
+                                self->raw_string_len * 2);
+            if (tmp != NULL) {
+                self->raw_string = tmp;
+            }
         }
         strcat(self->raw_string, sym_utf8);
         LOG("keysym: %s\n", sym_utf8);
