@@ -341,9 +341,9 @@ boolean SupportSurroundingText(Bogo *self)
     char *badPrograms[] = {
         "firefox", "konsole"
     };
-    
+
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
-    
+
     char *prgname = ProgramName(self);
     LOG("prgname: %s\n", prgname);
 
