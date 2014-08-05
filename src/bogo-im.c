@@ -73,6 +73,7 @@ static void BogoOnConfig(Bogo *self);
 boolean SupportSurroundingText(Bogo *self);
 INPUT_RETURN_VALUE CommitString(Bogo *self, char *str);
 char *ProgramName(Bogo *self);
+void DeletePreviousChars(Bogo *self, int num_backspace);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -250,11 +251,24 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
         fcitx_utf8_strlen(self->previous_result) - same_chars;
 
     LOG("num_backspace: %d\n", num_backspace);
+    DeletePreviousChars(self, num_backspace);
 
     char *string_to_commit = str + byte_offset;
+    FcitxInstanceCommitString(
+                self->fcitx,
+                FcitxInstanceGetCurrentIC(self->fcitx),
+                string_to_commit);
 
+    free(self->previous_result);
+    self->previous_result = str;
+
+    return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+}
+
+
+void DeletePreviousChars(Bogo *self, int num_backspace)
+{
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
-
     if (SupportSurroundingText(self)) {
         LOG("Delete surrounding text\n");
         FcitxInstanceDeleteSurroundingText(
@@ -291,16 +305,6 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
             nanosleep(&sleepTime, NULL);
         }
     }
-
-    FcitxInstanceCommitString(
-                self->fcitx,
-                FcitxInstanceGetCurrentIC(self->fcitx),
-                string_to_commit);
-
-    free(self->previous_result);
-    self->previous_result = str;
-
-    return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
 }
 
 
