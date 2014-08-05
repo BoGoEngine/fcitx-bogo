@@ -144,11 +144,23 @@ void BogoOnReset(Bogo *self)
 }
 
 
+boolean CanProcess(FcitxKeySym sym, unsigned int state)
+{
+    if (state & (FcitxKeyState_Ctrl |
+                 FcitxKeyState_Alt |
+                 FcitxKeyState_Super)) {
+        return false;
+    } else if (sym > FcitxKey_space && sym <= FcitxKey_asciitilde) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
 INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self, FcitxKeySym sym, unsigned int state)
 {
-    LOG("%d\n", sym == FcitxKey_BackSpace);
-
-    if (sym > FcitxKey_space && sym <=FcitxKey_asciitilde) {
+    if (CanProcess(sym, state)) {
         // Convert the keysym to UTF8
         char *sym_utf8 = malloc(UTF8_MAX_LENGTH + 1);
         memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
