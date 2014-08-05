@@ -152,11 +152,11 @@ void BogoOnReset(Bogo *self)
     if (self->previous_result) {
         free(self->previous_result);
     }
-    
+
     if (self->raw_string) {
         free(self->raw_string);
     }
-    
+
     BogoInitialize(self);
 }
 
