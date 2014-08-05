@@ -179,41 +179,41 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                                   FcitxKeySym sym,
                                   unsigned int state)
 {
-    if (CanProcess(sym, state)) {
-        // Convert the keysym to UTF8
-        char sym_utf8[UTF8_MAX_LENGTH + 1];
-        memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
-
-        FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
-        LOG("keysym: %s\n", sym_utf8);
-
-        // Append the key to raw_string
-        if (strlen(self->raw_string) + strlen(sym_utf8) > 
-                self->raw_string_len) {
-            char *tmp = realloc(self->raw_string,
-                                self->raw_string_len * 2);
-            if (tmp != NULL) {
-                self->raw_string = tmp;
-            }
-        }
-        strcat(self->raw_string, sym_utf8);
-
-        // Send the raw key sequence to bogo-python to get the
-        // converted string.
-        PyObject *args, *pyResult;
-
-        args = Py_BuildValue("(s)", self->raw_string);
-        pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
-        Py_DECREF(args);
-
-        char *result = strdup(PyUnicode_AsUTF8(pyResult));
-        Py_DECREF(pyResult);
-
-        return CommitString(self, result);
+    if (!CanProcess(sym, state)) {
+        BogoOnReset(self);
+        return IRV_TO_PROCESS;
     }
 
-    BogoOnReset(self);
-    return IRV_TO_PROCESS;
+    // Convert the keysym to UTF8
+    char sym_utf8[UTF8_MAX_LENGTH + 1];
+    memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
+
+    FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
+    LOG("keysym: %s\n", sym_utf8);
+
+    // Append the key to raw_string
+    if (strlen(self->raw_string) + strlen(sym_utf8) > 
+            self->raw_string_len) {
+        char *tmp = realloc(self->raw_string,
+                            self->raw_string_len * 2);
+        if (tmp != NULL) {
+            self->raw_string = tmp;
+        }
+    }
+    strcat(self->raw_string, sym_utf8);
+
+    // Send the raw key sequence to bogo-python to get the
+    // converted string.
+    PyObject *args, *pyResult;
+
+    args = Py_BuildValue("(s)", self->raw_string);
+    pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
+    Py_DECREF(args);
+
+    char *result = strdup(PyUnicode_AsUTF8(pyResult));
+    Py_DECREF(pyResult);
+
+    return CommitString(self, result);
 }
 
 
