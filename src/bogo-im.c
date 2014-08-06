@@ -298,6 +298,9 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
         }
 
         // Delay to make sure all the backspaces have been processed.
+        // FIXME 30 is just a magic number found through
+        //       trial-and-error. Maybe we should allow it to be
+        //       user-configurable.
         if (num_backspace > 0) {
             struct timespec sleepTime = {
                 0,
