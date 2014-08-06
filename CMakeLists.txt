@@ -22,7 +22,11 @@ find_package(Fcitx 4.2.8 REQUIRED)
 find_package(Libiconv REQUIRED)
 find_package(PythonLibs REQUIRED)
 
+set(DATA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/fcitx-bogo)
+
 configure_file(config.h.in config.h)
+
+install(DIRECTORY bogo-python/bogo DESTINATION ${DATA_INSTALL_PATH})
 
 add_subdirectory(src)
 add_subdirectory(data)

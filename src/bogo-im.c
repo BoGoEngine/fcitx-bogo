@@ -117,6 +117,8 @@ void* FcitxBogoSetup(FcitxInstance* instance)
     Py_SetProgramName(L"fcitx-bogo");
     Py_Initialize();
 
+    PyRun_SimpleString("import sys; sys.path.append('" DATA_INSTALL_PATH "')");
+
     PyObject *moduleName, *bogoModule;
     moduleName = PyUnicode_FromString("bogo");
     bogoModule = PyImport_Import(moduleName);
