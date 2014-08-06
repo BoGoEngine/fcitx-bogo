@@ -6,13 +6,6 @@ cmake ..
 make; sudo make install
 ```
 
-For now, make sure you have [bogo-python][1] (it will be distributed later 
-with fcitx-bogo):
-
-```
-sudo pip install bogo
-```
-
 [1]: https://github.com/BoGoEngine/bogo-python
 
 ## Usage
