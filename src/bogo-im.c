@@ -23,7 +23,8 @@ typedef const char* IconvStr;
 typedef char* IconvStr;
 #endif
 
-PyObject *bogo_process_sequence_func;
+static PyObject *bogo_process_sequence_func;
+static PyObject *bogo_handle_backspace_func;
 
 
 /*
@@ -50,10 +51,10 @@ typedef struct {
     // The handle to talk to fcitx
     FcitxInstance *fcitx;
     iconv_t conv;
-    char *raw_string;
-    int raw_string_len;
+    char *rawString;
+    int rawStringLen;
     
-    char *previous_result;
+    char *prevConvertedString;
 } Bogo;
 
 int FcitxUnikeyUcs4ToUtf8(Bogo *self,
@@ -70,10 +71,10 @@ static void BogoOnReset(Bogo *self);
 static void BogoOnSave(Bogo *self);
 static void BogoOnConfig(Bogo *self);
 
-boolean SupportSurroundingText(Bogo *self);
-INPUT_RETURN_VALUE CommitString(Bogo *self, char *str);
-char *ProgramName(Bogo *self);
-void DeletePreviousChars(Bogo *self, int num_backspace);
+static boolean SupportSurroundingText(Bogo *self);
+static void CommitString(Bogo *self, char *str);
+static char *ProgramName(Bogo *self);
+static void DeletePreviousChars(Bogo *self, int num_backspace);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -126,6 +127,9 @@ void* FcitxBogoSetup(FcitxInstance* instance)
 
     bogo_process_sequence_func = \
         PyObject_GetAttrString(bogoModule, "process_sequence");
+    
+    bogo_handle_backspace_func = \
+        PyObject_GetAttrString(bogoModule, "handle_backspace");
 
     return bogo;
 }
@@ -138,11 +142,11 @@ void FcitxBogoTeardown(void* arg)
 
 
 void BogoInitialize(Bogo *self) {
-    self->previous_result = malloc(1);
-    self->previous_result[0] = 0;
-    self->raw_string = malloc(INITIAL_STRING_LEN);
-    self->raw_string[0] = 0;
-    self->raw_string_len = INITIAL_STRING_LEN;
+    self->prevConvertedString = malloc(1);
+    self->prevConvertedString[0] = 0;
+    self->rawString = malloc(INITIAL_STRING_LEN);
+    self->rawString[0] = 0;
+    self->rawStringLen = INITIAL_STRING_LEN;
 }
 
 
@@ -157,12 +161,12 @@ boolean BogoOnInit(Bogo *self)
 void BogoOnReset(Bogo *self)
 {
     LOG("Reset\n");
-    if (self->previous_result) {
-        free(self->previous_result);
+    if (self->prevConvertedString) {
+        free(self->prevConvertedString);
     }
 
-    if (self->raw_string) {
-        free(self->raw_string);
+    if (self->rawString) {
+        free(self->rawString);
     }
 
     BogoInitialize(self);
@@ -187,45 +191,75 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                                   FcitxKeySym sym,
                                   unsigned int state)
 {
-    if (!CanProcess(sym, state)) {
+    if (CanProcess(sym, state)) {
+        // Convert the keysym to UTF8
+        char sym_utf8[UTF8_MAX_LENGTH + 1];
+        memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
+    
+        FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
+        LOG("keysym: %s\n", sym_utf8);
+    
+        // Append the key to raw_string
+        if (strlen(self->rawString) + strlen(sym_utf8) > 
+                self->rawStringLen) {
+            char *tmp = realloc(self->rawString,
+                                self->rawStringLen * 2);
+            if (tmp != NULL) {
+                self->rawString = tmp;
+            }
+        }
+        strcat(self->rawString, sym_utf8);
+    
+        // Send the raw key sequence to bogo-python to get the
+        // converted string.
+        PyObject *args, *pyResult;
+    
+        args = Py_BuildValue("(s)", self->rawString);
+        pyResult = PyObject_CallObject(bogo_process_sequence_func,
+                                       args);
+    
+        char *convertedString = strdup(PyUnicode_AsUTF8(pyResult));
+        
+        Py_DECREF(args);
+        Py_DECREF(pyResult);
+
+        CommitString(self, convertedString);
+
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    } else if (sym == FcitxKey_BackSpace) {
+        if (strlen(self->rawString) > 0) {
+            PyObject *args, *result, *newConvertedString, *newRawString;
+
+            args = Py_BuildValue("(ss)",
+                                 self->prevConvertedString,
+                                 self->rawString);
+
+            result = PyObject_CallObject(bogo_handle_backspace_func,
+                                           args);
+            
+            newConvertedString = PyTuple_GetItem(result, 0);
+            newRawString = PyTuple_GetItem(result, 1);
+            
+            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+            CommitString(self, PyUnicode_AsUTF8(newConvertedString));
+            
+            Py_DECREF(args);
+            Py_DECREF(result);
+            Py_DECREF(newConvertedString);
+            Py_DECREF(newRawString);
+            
+            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        } else {
+            return IRV_FLAG_FORWARD_KEY;
+        }
+    } else {
         BogoOnReset(self);
         return IRV_TO_PROCESS;
     }
-
-    // Convert the keysym to UTF8
-    char sym_utf8[UTF8_MAX_LENGTH + 1];
-    memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
-
-    FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
-    LOG("keysym: %s\n", sym_utf8);
-
-    // Append the key to raw_string
-    if (strlen(self->raw_string) + strlen(sym_utf8) > 
-            self->raw_string_len) {
-        char *tmp = realloc(self->raw_string,
-                            self->raw_string_len * 2);
-        if (tmp != NULL) {
-            self->raw_string = tmp;
-        }
-    }
-    strcat(self->raw_string, sym_utf8);
-
-    // Send the raw key sequence to bogo-python to get the
-    // converted string.
-    PyObject *args, *pyResult;
-
-    args = Py_BuildValue("(s)", self->raw_string);
-    pyResult = PyObject_CallObject(bogo_process_sequence_func, args);
-    Py_DECREF(args);
-
-    char *result = strdup(PyUnicode_AsUTF8(pyResult));
-    Py_DECREF(pyResult);
-
-    return CommitString(self, result);
 }
 
 
-INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
+void CommitString(Bogo *self, char *str) {
     // Find the number of same chars between str and previous_result
     int byte_offset = 0;
     int same_chars = 0;
@@ -233,9 +267,9 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
     
     while (true) {
         char_len = fcitx_utf8_char_len(
-            self->previous_result + byte_offset);
+            self->prevConvertedString + byte_offset);
 
-        if (strncmp(self->previous_result + byte_offset,
+        if (strncmp(self->prevConvertedString + byte_offset,
                     str + byte_offset, char_len) != 0) {
             // same_chars and byte_offset are the results of this
             // loop.
@@ -250,7 +284,7 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
     // at the end of previous_result that differ from result.
     int num_backspace = 0;
     num_backspace = \
-        fcitx_utf8_strlen(self->previous_result) - same_chars;
+        fcitx_utf8_strlen(self->prevConvertedString) - same_chars;
 
     LOG("num_backspace: %d\n", num_backspace);
     DeletePreviousChars(self, num_backspace);
@@ -261,10 +295,8 @@ INPUT_RETURN_VALUE CommitString(Bogo *self, char *str) {
                 FcitxInstanceGetCurrentIC(self->fcitx),
                 string_to_commit);
 
-    free(self->previous_result);
-    self->previous_result = str;
-
-    return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    free(self->prevConvertedString);
+    self->prevConvertedString = str;
 }
 
 
