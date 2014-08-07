@@ -8,24 +8,6 @@
 
 #include "config.h"
 
-#define LOGGING
-#define INITIAL_STRING_LEN 128
-
-#ifdef LOGGING
-    #define LOG(fmt...) printf(fmt)
-#else
-    #define LOG(fmt...)
-#endif
-
-#ifdef LIBICONV_SECOND_ARGUMENT_IS_CONST
-typedef const char* IconvStr;
-#else
-typedef char* IconvStr;
-#endif
-
-static PyObject *bogo_process_sequence_func;
-static PyObject *bogo_handle_backspace_func;
-
 
 /*
  * fcitx-bogo is a shared library that will be dynamically linked
@@ -46,6 +28,26 @@ FcitxIMClass ime = {
 FCITX_EXPORT_API
 int ABI_VERSION = FCITX_ABI_VERSION; 
 
+
+#define LOGGING
+
+#ifdef LOGGING
+    #define LOG(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
+#else
+    #define LOG(fmt...)
+#endif
+
+#define INITIAL_STRING_LEN 128
+
+
+#ifdef LIBICONV_SECOND_ARGUMENT_IS_CONST
+typedef const char* IconvStr;
+#else
+typedef char* IconvStr;
+#endif
+
+static PyObject *bogo_process_sequence_func;
+static PyObject *bogo_handle_backspace_func;
 
 typedef struct {
     // The handle to talk to fcitx
