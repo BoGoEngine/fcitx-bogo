@@ -290,7 +290,10 @@ void CommitString(Bogo *self, char *str) {
         LOG("Commit string by forwarding");
         CommitStringByForwarding(self, string_to_commit);
     } else {
-        if (method == DELETE_METHOD_BACKSPACE) {
+        if (method == DELETE_METHOD_BACKSPACE &&
+            !IsQtAppNotSupportingSurroundingText(ProgramName(self)))
+        {
+            LOG("Delaying");
             // Delay to make sure all the backspaces have been 
             // processed.
             // FIXME 30 is just a magic number found through
