@@ -28,10 +28,7 @@ FcitxIMClass ime = {
 FCITX_EXPORT_API
 int ABI_VERSION = FCITX_ABI_VERSION; 
 
-
-#define LOGGING
-
-#ifdef LOGGING
+#ifdef DEBUG
     #define LOG(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
 #else
     #define LOG(fmt...)

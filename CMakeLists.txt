@@ -18,6 +18,8 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-sign-compare -Wno-unused-parameter -fvis
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--as-needed ${CMAKE_SHARED_LINKER_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--as-needed ${CMAKE_MODULE_LINKER_FLAGS}")
 
+set(CMAKE_C_FLAGS_DEBUG "-DDEBUG")
+
 find_package(Fcitx 4.2.8 REQUIRED)
 find_package(Libiconv REQUIRED)
 find_package(PythonLibs REQUIRED)
