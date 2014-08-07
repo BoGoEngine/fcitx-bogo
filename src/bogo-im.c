@@ -226,32 +226,32 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         CommitString(self, convertedString);
 
         return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-//    } else if (sym == FcitxKey_BackSpace) {
-//        if (strlen(self->rawString) > 0) {
-//            PyObject *args, *result, *newConvertedString, *newRawString;
+    } else if (sym == FcitxKey_BackSpace) {
+        if (strlen(self->rawString) > 0) {
+            PyObject *args, *result, *newConvertedString, *newRawString;
 
-//            args = Py_BuildValue("(ss)",
-//                                 self->prevConvertedString,
-//                                 self->rawString);
+            args = Py_BuildValue("(ss)",
+                                 self->prevConvertedString,
+                                 self->rawString);
 
-//            result = PyObject_CallObject(bogo_handle_backspace_func,
-//                                         args);
+            result = PyObject_CallObject(bogo_handle_backspace_func,
+                                         args);
 
-//            newConvertedString = PyTuple_GetItem(result, 0);
-//            newRawString = PyTuple_GetItem(result, 1);
+            newConvertedString = PyTuple_GetItem(result, 0);
+            newRawString = PyTuple_GetItem(result, 1);
 
-//            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
-//            CommitString(self, PyUnicode_AsUTF8(newConvertedString));
+            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+            CommitString(self, PyUnicode_AsUTF8(newConvertedString));
 
-//            Py_DECREF(args);
-//            Py_DECREF(result);
-//            Py_DECREF(newConvertedString);
-//            Py_DECREF(newRawString);
+            Py_DECREF(args);
+            Py_DECREF(result);
+            Py_DECREF(newConvertedString);
+            Py_DECREF(newRawString);
 
-//            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-//        } else {
-//            return IRV_FLAG_FORWARD_KEY;
-//        }
+            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        } else {
+            return IRV_FLAG_FORWARD_KEY;
+        }
     } else {
         BogoOnReset(self);
         return IRV_TO_PROCESS;
