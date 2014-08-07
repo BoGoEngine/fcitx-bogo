@@ -1,5 +1,13 @@
 ## Installation 
 
+**Arch Linux**
+
+```
+yaourt fcitx-bogo-git
+```
+
+**Others**
+
 ```
 mkdir build; cd build
 cmake ..
