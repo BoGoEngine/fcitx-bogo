@@ -312,7 +312,6 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
                     ic,
                     -num_backspace,
                     num_backspace);
-        return DELETE_METHOD_SURROUNDING_TEXT;
     } else {
         LOG("Send backspaces");
         int i = 0;
