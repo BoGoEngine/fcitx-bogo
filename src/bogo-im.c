@@ -238,12 +238,10 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             newRawString = PyTuple_GetItem(result, 1);
 
             strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
-            CommitString(self, PyUnicode_AsUTF8(newConvertedString));
+            CommitString(self, strdup(PyUnicode_AsUTF8(newConvertedString)));
 
-            Py_DECREF(args);
             Py_DECREF(result);
-            Py_DECREF(newConvertedString);
-            Py_DECREF(newRawString);
+            Py_DECREF(args);
 
             return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
         } else {
