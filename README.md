@@ -1,20 +1,25 @@
 ## Installation 
 
-**Arch Linux**
+### Arch Linux**
 
 ```
 yaourt fcitx-bogo-git
 ```
 
-**Others**
+### Others
+
+**Requirements**
+
+- Python 3 and development headers
+- Fcitx and development headers
+
+**Build and install**
 
 ```
 mkdir build; cd build
 cmake ..
 make; sudo make install
 ```
-
-[1]: https://github.com/BoGoEngine/bogo-python
 
 ## Usage
 
