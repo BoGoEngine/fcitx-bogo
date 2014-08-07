@@ -203,6 +203,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                                 self->rawStringLen * 2);
             if (tmp != NULL) {
                 self->rawString = tmp;
+                self->rawStringLen = self->rawStringLen * 2;
             }
         }
         strcat(self->rawString, sym_utf8);
