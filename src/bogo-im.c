@@ -28,10 +28,7 @@ FcitxIMClass ime = {
 FCITX_EXPORT_API
 int ABI_VERSION = FCITX_ABI_VERSION; 
 
-
-#define LOGGING
-
-#ifdef LOGGING
+#ifdef DEBUG
     #define LOG(fmt, ...) printf(fmt "\n", ##__VA_ARGS__)
 #else
     #define LOG(fmt...)
@@ -179,7 +176,7 @@ boolean CanProcess(FcitxKeySym sym, unsigned int state)
                  FcitxKeyState_Alt |
                  FcitxKeyState_Super)) {
         return false;
-    } else if (sym > FcitxKey_space && sym <= FcitxKey_asciitilde) {
+    } else if (sym >= FcitxKey_space && sym <= FcitxKey_asciitilde) {
         return true;
     } else {
         return false;
@@ -206,6 +203,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                                 self->rawStringLen * 2);
             if (tmp != NULL) {
                 self->rawString = tmp;
+                self->rawStringLen = self->rawStringLen * 2;
             }
         }
         strcat(self->rawString, sym_utf8);
@@ -226,32 +224,30 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         CommitString(self, convertedString);
 
         return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-//    } else if (sym == FcitxKey_BackSpace) {
-//        if (strlen(self->rawString) > 0) {
-//            PyObject *args, *result, *newConvertedString, *newRawString;
+    } else if (sym == FcitxKey_BackSpace) {
+        if (strlen(self->rawString) > 0) {
+            PyObject *args, *result, *newConvertedString, *newRawString;
 
-//            args = Py_BuildValue("(ss)",
-//                                 self->prevConvertedString,
-//                                 self->rawString);
+            args = Py_BuildValue("(ss)",
+                                 self->prevConvertedString,
+                                 self->rawString);
 
-//            result = PyObject_CallObject(bogo_handle_backspace_func,
-//                                         args);
+            result = PyObject_CallObject(bogo_handle_backspace_func,
+                                         args);
 
-//            newConvertedString = PyTuple_GetItem(result, 0);
-//            newRawString = PyTuple_GetItem(result, 1);
+            newConvertedString = PyTuple_GetItem(result, 0);
+            newRawString = PyTuple_GetItem(result, 1);
 
-//            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
-//            CommitString(self, PyUnicode_AsUTF8(newConvertedString));
+            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+            CommitString(self, strdup(PyUnicode_AsUTF8(newConvertedString)));
 
-//            Py_DECREF(args);
-//            Py_DECREF(result);
-//            Py_DECREF(newConvertedString);
-//            Py_DECREF(newRawString);
+            Py_DECREF(result);
+            Py_DECREF(args);
 
-//            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-//        } else {
-//            return IRV_FLAG_FORWARD_KEY;
-//        }
+            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        } else {
+            return IRV_FLAG_FORWARD_KEY;
+        }
     } else {
         BogoOnReset(self);
         return IRV_TO_PROCESS;
@@ -295,7 +291,10 @@ void CommitString(Bogo *self, char *str) {
         LOG("Commit string by forwarding");
         CommitStringByForwarding(self, string_to_commit);
     } else {
-        if (method == DELETE_METHOD_BACKSPACE) {
+        if (method == DELETE_METHOD_BACKSPACE &&
+            !IsQtAppNotSupportingSurroundingText(ProgramName(self)))
+        {
+            LOG("Delaying");
             // Delay to make sure all the backspaces have been 
             // processed.
             // FIXME 30 is just a magic number found through
