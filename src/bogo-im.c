@@ -82,7 +82,9 @@ static boolean SupportSurroundingText(Bogo *self);
 static void CommitString(Bogo *self, char *str);
 static char *ProgramName(Bogo *self);
 static DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace);
-void CommitStringByForwarding(Bogo *self, const char *str);
+static void CommitStringByForwarding(Bogo *self, const char *str);
+static boolean IsGtkAppNotSupportingSurroundingText(char *name);
+static boolean IsQtAppNotSupportingSurroundingText(char *name);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -289,7 +291,8 @@ void CommitString(Bogo *self, char *str) {
 
     char *string_to_commit = str + byte_offset;
     
-    if (strcmp(ProgramName(self), "firefox") == 0) {
+    if (IsGtkAppNotSupportingSurroundingText(ProgramName(self))) {
+        LOG("Commit string by forwarding");
         CommitStringByForwarding(self, string_to_commit);
     } else {
         if (method == DELETE_METHOD_BACKSPACE) {
@@ -376,12 +379,43 @@ char *ProgramName(Bogo *self)
 }
 
 
-boolean SupportSurroundingText(Bogo *self)
+boolean IsStringInCollection(char *str, char **collection, int length)
 {
-    char *badPrograms[] = {
-        "firefox", "konsole"
+    int i;
+    for (i = 0; i < length; i++) {
+        if (strcmp(collection[i], str) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+boolean IsGtkAppNotSupportingSurroundingText(char *name)
+{
+    char *names[] = {
+        "firefox", "terminator", "gnome-terminal-", "mate-terminal"
     };
 
+    return IsStringInCollection(name,
+                                names,
+                                sizeof(names) / sizeof(char *));
+}
+
+boolean IsQtAppNotSupportingSurroundingText(char *name)
+{
+    char *names[] = {
+        "konsole"
+    };
+
+    return IsStringInCollection(name,
+                                names,
+                                sizeof(names) / sizeof(char *));
+}
+
+
+boolean SupportSurroundingText(Bogo *self)
+{
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
 
     char *prgname = ProgramName(self);
@@ -389,17 +423,9 @@ boolean SupportSurroundingText(Bogo *self)
 
     boolean support = ic->contextCaps & CAPACITY_SURROUNDING_TEXT;
 
-    if (support) {
-        int i;
-        for (i = 0; i < sizeof(badPrograms) / sizeof(char *); i++) {
-            if (strcmp(badPrograms[i], prgname) == 0) {
-                support = false;
-                break;
-            }
-        }
-    }
-
-    return support;
+    return support && 
+           !IsGtkAppNotSupportingSurroundingText(prgname) &&
+           !IsQtAppNotSupportingSurroundingText(prgname);
 }
 
 
