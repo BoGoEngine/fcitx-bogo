@@ -49,6 +49,13 @@ typedef char* IconvStr;
 static PyObject *bogo_process_sequence_func;
 static PyObject *bogo_handle_backspace_func;
 
+
+typedef enum {
+    DELETE_METHOD_BACKSPACE,
+    DELETE_METHOD_SURROUNDING_TEXT
+} DELETE_METHOD;
+
+
 typedef struct {
     // The handle to talk to fcitx
     FcitxInstance *fcitx;
@@ -74,7 +81,8 @@ static void BogoOnConfig(Bogo *self);
 static boolean SupportSurroundingText(Bogo *self);
 static void CommitString(Bogo *self, char *str);
 static char *ProgramName(Bogo *self);
-static void DeletePreviousChars(Bogo *self, int num_backspace);
+static DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace);
+void CommitStringByForwarding(Bogo *self, const char *str);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -277,20 +285,41 @@ void CommitString(Bogo *self, char *str) {
         fcitx_utf8_strlen(self->prevConvertedString) - same_chars;
 
     LOG("num_backspace: %d\n", num_backspace);
-    DeletePreviousChars(self, num_backspace);
+    DELETE_METHOD method = DeletePreviousChars(self, num_backspace);
 
     char *string_to_commit = str + byte_offset;
-    FcitxInstanceCommitString(
-                self->fcitx,
-                FcitxInstanceGetCurrentIC(self->fcitx),
-                string_to_commit);
+    
+    if (strcmp(ProgramName(self), "firefox") == 0) {
+        CommitStringByForwarding(self, string_to_commit);
+    } else {
+        if (method == DELETE_METHOD_BACKSPACE) {
+            // Delay to make sure all the backspaces have been 
+            // processed.
+            // FIXME 30 is just a magic number found through
+            //       trial-and-error. Maybe we should allow it to be
+            //       user-configurable.
+            if (num_backspace > 0) {
+                struct timespec sleepTime = {
+                    0,
+                    30 * 1000000 // 30 miliseconds
+                };
+
+                nanosleep(&sleepTime, NULL);
+            }
+        }
+
+        FcitxInstanceCommitString(
+                    self->fcitx,
+                    FcitxInstanceGetCurrentIC(self->fcitx),
+                    string_to_commit);
+    }
 
     free(self->prevConvertedString);
     self->prevConvertedString = str;
 }
 
 
-void DeletePreviousChars(Bogo *self, int num_backspace)
+DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
 {
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
     if (SupportSurroundingText(self)) {
@@ -300,6 +329,7 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
                     ic,
                     -num_backspace,
                     num_backspace);
+        return DELETE_METHOD_SURROUNDING_TEXT;
     } else {
         LOG("Send backspaces");
         int i = 0;
@@ -318,19 +348,7 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
                         FcitxKey_BackSpace,
                         0);
         }
-
-        // Delay to make sure all the backspaces have been processed.
-        // FIXME 30 is just a magic number found through
-        //       trial-and-error. Maybe we should allow it to be
-        //       user-configurable.
-        if (num_backspace > 0) {
-            struct timespec sleepTime = {
-                0,
-                30 * 1000000 // 30 miliseconds
-            };
-
-            nanosleep(&sleepTime, NULL);
-        }
+        return DELETE_METHOD_BACKSPACE;
     }
 }
 
@@ -382,6 +400,42 @@ boolean SupportSurroundingText(Bogo *self)
     }
 
     return support;
+}
+
+
+void CommitStringByForwarding(Bogo *self, const char *str)
+{
+    int len;
+    char chr[UTF8_MAX_LENGTH + 1];
+    FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
+    int offset = 0;
+
+    while(str[offset] != 0) {
+        len = fcitx_utf8_char_len(str + offset);
+        strncpy(chr, str + offset, len);
+        chr[len] = 0;
+        LOG("%s %d %d", chr, len, offset);
+        
+        uint32_t utf32 = Utf8ToUtf32Char(chr);
+        FcitxKeySym keysym = FcitxUnicodeToKeySym(utf32);
+        LOG("%d", keysym);
+        
+        FcitxInstanceForwardKey(
+                    self->fcitx,
+                    ic,
+                    FCITX_PRESS_KEY,
+                    keysym,
+                    0);
+        
+        FcitxInstanceForwardKey(
+                    self->fcitx,
+                    ic,
+                    FCITX_RELEASE_KEY,
+                    keysym,
+                    0);
+
+        offset += len;
+    }
 }
 
 
