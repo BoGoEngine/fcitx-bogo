@@ -10,8 +10,10 @@ yaourt fcitx-bogo-git
 
 Requirements
 
+```
 - Python 3 and development headers
 - Fcitx and development headers
+```
 
 Build and install
 
