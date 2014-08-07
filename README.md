@@ -1,19 +1,19 @@
 ## Installation 
 
-### Arch Linux**
+**Arch Linux**
 
 ```
 yaourt fcitx-bogo-git
 ```
 
-### Others
+**Others**
 
-**Requirements**
+Requirements
 
 - Python 3 and development headers
 - Fcitx and development headers
 
-**Build and install**
+Build and install
 
 ```
 mkdir build; cd build
