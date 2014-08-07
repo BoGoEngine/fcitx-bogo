@@ -138,7 +138,7 @@ void* FcitxBogoSetup(FcitxInstance* instance)
 
 void FcitxBogoTeardown(void* arg)
 {
-    LOG("Destroyed\n");
+    LOG("Destroyed");
     Py_Finalize();
 }
 
@@ -154,7 +154,7 @@ void BogoInitialize(Bogo *self) {
 
 boolean BogoOnInit(Bogo *self)
 {
-    LOG("Init\n");
+    LOG("Init");
     BogoInitialize(self);
     return true;
 }
@@ -162,7 +162,7 @@ boolean BogoOnInit(Bogo *self)
 
 void BogoOnReset(Bogo *self)
 {
-    LOG("Reset\n");
+    LOG("Reset");
     if (self->prevConvertedString) {
         free(self->prevConvertedString);
     }
@@ -199,7 +199,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
     
         FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
-        LOG("keysym: %s\n", sym_utf8);
+        LOG("keysym: %s", sym_utf8);
     
         // Append the key to raw_string
         if (strlen(self->rawString) + strlen(sym_utf8) > 
@@ -306,14 +306,15 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
 {
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
     if (SupportSurroundingText(self)) {
-        LOG("Delete surrounding text\n");
+        LOG("Delete surrounding text");
         FcitxInstanceDeleteSurroundingText(
                     self->fcitx,
                     ic,
                     -num_backspace,
                     num_backspace);
+        return DELETE_METHOD_SURROUNDING_TEXT;
     } else {
-        LOG("Send backspaces\n");
+        LOG("Send backspaces");
         int i = 0;
         for (; i < num_backspace; ++i) {
             FcitxInstanceForwardKey(
@@ -349,12 +350,12 @@ void DeletePreviousChars(Bogo *self, int num_backspace)
 
 void BogoOnSave(Bogo *self)
 {
-    LOG("Saved\n");
+    LOG("Saved");
 }
 
 void BogoOnConfig(Bogo *self)
 {
-    LOG("Reload config\n");
+    LOG("Reload config");
 }
 
 int FcitxUnikeyUcs4ToUtf8(Bogo *self,
@@ -393,7 +394,7 @@ boolean SupportSurroundingText(Bogo *self)
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
 
     char *prgname = ProgramName(self);
-    LOG("prgname: %s\n", prgname);
+    LOG("prgname: %s", prgname);
 
     boolean support = ic->contextCaps & CAPACITY_SURROUNDING_TEXT;
 
