@@ -176,7 +176,7 @@ boolean CanProcess(FcitxKeySym sym, unsigned int state)
                  FcitxKeyState_Alt |
                  FcitxKeyState_Super)) {
         return false;
-    } else if (sym > FcitxKey_space && sym <= FcitxKey_asciitilde) {
+    } else if (sym >= FcitxKey_space && sym <= FcitxKey_asciitilde) {
         return true;
     } else {
         return false;
