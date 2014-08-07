@@ -52,16 +52,14 @@ static PyObject *bogo_handle_backspace_func;
 typedef struct {
     // The handle to talk to fcitx
     FcitxInstance *fcitx;
-    iconv_t conv;
     char *rawString;
     int rawStringLen;
     
     char *prevConvertedString;
 } Bogo;
 
-int FcitxUnikeyUcs4ToUtf8(Bogo *self,
-                          const unsigned int c,
-                          char buf[UTF8_MAX_LENGTH + 1]);
+int Utf32ToUtf8Char(const unsigned int c, char buf[UTF8_MAX_LENGTH + 1]);
+uint32_t Utf8ToUtf32Char(char *src);
 
 
 // Public interface functions
@@ -105,16 +103,6 @@ void* FcitxBogoSetup(FcitxInstance* instance)
         1,          // priority
         "vi"        // language
     );
-    
-    union {
-        short s;
-        unsigned char b[2];
-    } endian;
-    endian.s = 0x1234;
-    if (endian.b[0] == 0x12)
-        bogo->conv = iconv_open("utf-8", "ucs-4be");
-    else
-        bogo->conv = iconv_open("utf-8", "ucs-4le");
 
     // Load the bogo-python engine
     Py_SetProgramName(L"fcitx-bogo");
@@ -198,7 +186,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         char sym_utf8[UTF8_MAX_LENGTH + 1];
         memset(sym_utf8, 0, UTF8_MAX_LENGTH + 1);
     
-        FcitxUnikeyUcs4ToUtf8(self, sym, sym_utf8);
+        Utf32ToUtf8Char(sym, sym_utf8);
         LOG("keysym: %s", sym_utf8);
     
         // Append the key to raw_string
@@ -357,30 +345,16 @@ void BogoOnConfig(Bogo *self)
     LOG("Reload config");
 }
 
-int FcitxUnikeyUcs4ToUtf8(Bogo *self,
-                          const unsigned int c,
-                          char buf[UTF8_MAX_LENGTH + 1])
-{
-    unsigned int str[2];
-    str[0] = c;
-    str[1] = 0;
-
-    size_t ucslen = 1;
-    size_t len = UTF8_MAX_LENGTH;
-    len *= sizeof(char);
-    ucslen *= sizeof(unsigned int);
-    char* p = buf;
-    IconvStr src = (IconvStr) str;
-    iconv(self->conv, &src, &ucslen, &p, &len);
-    return (UTF8_MAX_LENGTH - len) / sizeof(char);
-}
-
 
 char *ProgramName(Bogo *self)
 {
     FcitxInputContext2 *ic = 
         (FcitxInputContext2 *) FcitxInstanceGetCurrentIC(self->fcitx);
-    return ic->prgname;
+    if (ic->prgname) {
+        return ic->prgname;
+    } else {
+        return "";
+    }
 }
 
 
@@ -410,3 +384,62 @@ boolean SupportSurroundingText(Bogo *self)
     return support;
 }
 
+
+int Utf32ToUtf8Char(const unsigned int c, char buf[UTF8_MAX_LENGTH + 1])
+{
+    unsigned int str[2];
+    str[0] = c;
+    str[1] = 0;
+    
+    iconv_t *conv;
+    
+    union {
+        short s;
+        unsigned char b[2];
+    } endian;
+    
+    endian.s = 0x1234;
+    if (endian.b[0] == 0x12)
+        conv = iconv_open("utf-8", "ucs-4be");
+    else
+        conv = iconv_open("utf-8", "ucs-4le");
+
+    size_t ucslen = 1;
+    size_t len = UTF8_MAX_LENGTH;
+    len *= sizeof(char);
+    ucslen *= sizeof(unsigned int);
+    char* p = buf;
+    IconvStr src = (IconvStr) str;
+    iconv(conv, &src, &ucslen, &p, &len);
+    
+    iconv_close(conv);
+    return (UTF8_MAX_LENGTH - len) / sizeof(char);
+}
+
+
+uint32_t Utf8ToUtf32Char(char *src)
+{
+    iconv_t *conv;
+
+    union {
+        short s;
+        unsigned char b[2];
+    } endian;
+
+    endian.s = 0x1234;
+    if (endian.b[0] == 0x12)
+        conv = iconv_open("ucs-4be", "utf-8");
+    else
+        conv = iconv_open("ucs-4le", "utf-8");
+    
+    uint32_t output[2];
+    
+    size_t inLength = UTF8_MAX_LENGTH + 1;
+    size_t outLength = sizeof(uint32_t);
+    IconvStr buff = (IconvStr) output;
+
+    iconv(conv, &src, &inLength, &buff, &outLength);
+    
+    iconv_close(conv);
+    return output[0];
+}
