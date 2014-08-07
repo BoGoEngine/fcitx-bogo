@@ -1,3 +1,12 @@
+## Debugging
+
+Run cmake in the Debug mode for debugging symbols and logging:
+
+    cmake -DCMAKE_BUILD_TYPE=Debug ..
+
+Run fcitx in non-daemon mode to see logging messages:
+
+    fcitx --replace -D
 
 ## bogo-python
 

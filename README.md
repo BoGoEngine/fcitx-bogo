@@ -18,12 +18,6 @@ make; sudo make install
 
 ## Usage
 
-Start Fcitx and make it stick to the terminal (non-daemon):
-
-```
-fcitx --replace -D
-```
-
 Use Fcitx's config tool to set BoGo as the default IME and activate it
 (the default hotkey should be <kbd>Ctrl</kbd>+<kbd>Space</kbd>).
 
