@@ -24,7 +24,8 @@ make; sudo make install
 ## Usage
 
 Use Fcitx's config tool to set BoGo as the default IME and activate it
-(the default hotkey should be <kbd>Ctrl</kbd>+<kbd>Space</kbd>).
+
+> The default hotkey should be <kbd>Ctrl</kbd>+<kbd>Space</kbd>.
 
 ![Setup fcitx-bogo](/data/tut.png)
 
