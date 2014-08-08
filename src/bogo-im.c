@@ -120,7 +120,8 @@ void* FcitxBogoSetup(FcitxInstance* instance)
 #endif
     Py_Initialize();
 
-    PyRun_SimpleString("import sys; sys.path.append('" DATA_INSTALL_PATH "')");
+    PyRun_SimpleString(
+        "import sys; sys.path.append('" DATA_INSTALL_PATH "')");
 
     PyObject *moduleName, *bogoModule;
     moduleName = PyUnicode_FromString("bogo");
@@ -247,7 +248,8 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             newRawString = PyTuple_GetItem(result, 1);
 
             strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
-            CommitString(self, strdup(PyUnicode_AsUTF8(newConvertedString)));
+            CommitString(self,
+                         strdup(PyUnicode_AsUTF8(newConvertedString)));
 
             Py_DECREF(result);
             Py_DECREF(args);
