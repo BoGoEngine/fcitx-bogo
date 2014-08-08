@@ -9,6 +9,7 @@ ${PYTHON_INCLUDE_DIRS}
 
 set(fcitx_bogo_sources
     bogo-im.c
+    python3compat.h
     )
 
 add_definitions( -DLOCALEDIR=\"${CMAKE_INSTALL_PREFIX}/share/locale\" )

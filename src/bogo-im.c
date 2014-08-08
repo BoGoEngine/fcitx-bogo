@@ -1,12 +1,13 @@
+#include <Python.h>
 #include <fcitx/fcitx.h>
 #include <fcitx/ime.h>
 #include <fcitx/instance.h>
 #include <fcitx-utils/utf8.h>
 #include <iconv.h>
-#include <Python.h>
 #include <time.h>
 
 #include "config.h"
+#include "python3compat.h"
 
 
 /*
@@ -112,7 +113,11 @@ void* FcitxBogoSetup(FcitxInstance* instance)
     );
 
     // Load the bogo-python engine
+#if (PY_VERSION_HEX < 0x03000000)
+    Py_SetProgramName("fcitx-bogo");
+#else
     Py_SetProgramName(L"fcitx-bogo");
+#endif
     Py_Initialize();
 
     PyRun_SimpleString("import sys; sys.path.append('" DATA_INSTALL_PATH "')");
@@ -226,11 +231,14 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
         return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
     } else if (sym == FcitxKey_BackSpace) {
         if (strlen(self->rawString) > 0) {
-            PyObject *args, *result, *newConvertedString, *newRawString;
-
-            args = Py_BuildValue("(ss)",
-                                 self->prevConvertedString,
-                                 self->rawString);
+            PyObject *args, *result, *newConvertedString, *newRawString,
+                    *prevConvertedString, *rawString;
+            
+            prevConvertedString = \
+                PyUnicode_FromString(self->prevConvertedString);
+            rawString = PyUnicode_FromString(self->rawString);
+            
+            args = PyTuple_Pack(2, prevConvertedString, rawString);
 
             result = PyObject_CallObject(bogo_handle_backspace_func,
                                          args);
