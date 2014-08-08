@@ -257,6 +257,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
 
             return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
         } else {
+            BogoOnReset(self);
             return IRV_FLAG_FORWARD_KEY;
         }
     } else {
