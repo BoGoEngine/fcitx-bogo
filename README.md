@@ -2,29 +2,39 @@
 
 **Arch Linux**
 
+Please read this beforehand: https://wiki.archlinux.org/index.php/fcitx, then install fcitx-bogo from AUR.
+
 ```
 yaourt fcitx-bogo-git
 ```
 
-**Others**
+**Debian/Ubuntu/Mint**
 
 Requirements
 
 ```
-- Python 3 and development headers
-- Fcitx and development headers
+# CMake
+# Python 2.7+ and development headers
+# Fcitx and development headers
+
+sudo apt-get install cmake fcitx-libs-dev python2.7-dev build-essential
 ```
 
 Build and install
 
 ```
 mkdir build; cd build
-cmake ..
+cmake -DPYTHON_EXECUTABLE=$(which python2.7) ..
 make; sudo make install
 ```
 
-**NOTE**  The build fails at runtime on Ubuntu 14.04 and Mint 17
-([#10](https://github.com/BoGoEngine/fcitx-bogo/issues/10)).
+Runtime requirements
+
+```
+sudo apt-get install fcitx fcitx-config-gtk fcitx-frontend-{gtk2,gtk3,qt4,qt5} fcitx-ui-classic
+```
+
+Run `im-config` and choose **fcitx** as the active input method. Log out, log in.
 
 ## Usage
 
