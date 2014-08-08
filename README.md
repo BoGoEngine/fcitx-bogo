@@ -4,7 +4,7 @@
 
 Please read this beforehand: https://wiki.archlinux.org/index.php/fcitx, then install fcitx-bogo from AUR.
 
-```
+```bash
 yaourt fcitx-bogo-git
 ```
 
@@ -12,7 +12,7 @@ yaourt fcitx-bogo-git
 
 Build requirements
 
-```
+```bash
 # CMake
 # Python 2.7 (or higher) development headers
 # Fcitx development headers
@@ -22,7 +22,7 @@ sudo apt-get install cmake fcitx-libs-dev python2.7-dev build-essential
 
 Build and install
 
-```
+```bash
 mkdir build; cd build
 cmake -DPYTHON_EXECUTABLE=$(which python2.7) ..
 make; sudo make install
@@ -30,7 +30,7 @@ make; sudo make install
 
 Runtime requirements
 
-```
+```bash
 sudo apt-get install fcitx fcitx-frontend-{gtk2,gtk3,qt4,qt5} fcitx-ui-classic
 
 # If you're on KDE
@@ -44,7 +44,7 @@ Run `im-config` and choose **fcitx** as the active input method. Log out, log in
 
 ## Usage
 
-Use Fcitx's config tool to set BoGo as the default IME and activate it
+Use Fcitx's config tool to set BoGo as the default IME and activate it.
 
 > The default hotkey should be <kbd>Ctrl</kbd>+<kbd>Space</kbd>.
 
