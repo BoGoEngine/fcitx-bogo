@@ -231,7 +231,8 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
 
         return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
     } else if (sym == FcitxKey_BackSpace) {
-        if (strlen(self->rawString) > 0) {
+        if (strlen(self->rawString) > 0 &&
+                strlen(self->prevConvertedString) > 0) {
             PyObject *args, *result, *newConvertedString, *newRawString,
                     *prevConvertedString, *rawString;
             
