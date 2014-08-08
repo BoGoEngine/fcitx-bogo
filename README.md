@@ -23,6 +23,9 @@ cmake ..
 make; sudo make install
 ```
 
+**NOTE**  The build fails at runtime on Ubuntu 14.04 and Mint 17
+([#10](https://github.com/BoGoEngine/fcitx-bogo/issues/10)).
+
 ## Usage
 
 Use Fcitx's config tool to set BoGo as the default IME and activate it
