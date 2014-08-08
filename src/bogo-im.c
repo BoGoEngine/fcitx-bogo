@@ -63,7 +63,7 @@ typedef struct {
     char *prevConvertedString;
 } Bogo;
 
-int Utf32ToUtf8Char(const unsigned int c, char buf[UTF8_MAX_LENGTH + 1]);
+int Utf32ToUtf8Char(const uint32_t c, char buf[UTF8_MAX_LENGTH + 1]);
 uint32_t Utf8ToUtf32Char(char *src);
 
 
@@ -473,7 +473,7 @@ void CommitStringByForwarding(Bogo *self, const char *str)
 }
 
 
-int Utf32ToUtf8Char(const unsigned int c, char buf[UTF8_MAX_LENGTH + 1])
+int Utf32ToUtf8Char(const uint32_t c, char buf[UTF8_MAX_LENGTH + 1])
 {
     unsigned int str[2];
     str[0] = c;
