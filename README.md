@@ -48,6 +48,10 @@ Use Fcitx's config tool to set BoGo as the default IME and activate it.
 
 > The default hotkey should be <kbd>Ctrl</kbd>+<kbd>Space</kbd>.
 
+![Setup fcitx-bogo](/data/tut_gtk.png)
+
+For the KDE config tool:
+
 ![Setup fcitx-bogo](/data/tut.png)
 
 ## Known issues
