@@ -35,6 +35,10 @@ Use Fcitx's config tool to set BoGo as the default IME and activate it
 
 - Can't type with Skype and Wine apps on x86_64 (need testing on x86).
 
+## Want to help?
+
+See https://github.com/BoGoEngine/fcitx-bogo/wiki/For-Developers
+
 ## Legal stuff
 
     Copyright © 2014 Trung Ngo et al.
