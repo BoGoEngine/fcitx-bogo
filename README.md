@@ -33,12 +33,6 @@ Runtime requirements
 ```bash
 # The --install-recommends flag is IMPORTANT on Mint
 sudo apt-get install --install-recommends fcitx
-
-# If you're on KDE
-sudo apt-get install kde-config-fcitx
-
-# else
-sudo apt-get install fcitx-config-gtk
 ```
 
 Run `im-config` and choose **fcitx** as the active input method. Log out, log in.
