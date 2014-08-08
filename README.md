@@ -10,12 +10,12 @@ yaourt fcitx-bogo-git
 
 **Debian/Ubuntu/Mint**
 
-Requirements
+Build requirements
 
 ```
 # CMake
-# Python 2.7+ and development headers
-# Fcitx and development headers
+# Python 2.7 (or higher) development headers
+# Fcitx development headers
 
 sudo apt-get install cmake fcitx-libs-dev python2.7-dev build-essential
 ```
@@ -31,7 +31,15 @@ make; sudo make install
 Runtime requirements
 
 ```
-sudo apt-get install fcitx fcitx-config-gtk fcitx-frontend-{gtk2,gtk3,qt4,qt5} fcitx-ui-classic
+sudo apt-get install fcitx fcitx-frontend-{gtk2,gtk3,qt4,qt5} fcitx-ui-classic
+
+# If you're on KDE
+
+sudo apt-get install kde-config-fcitx
+
+# else
+
+sudo apt-get install fcitx-config-gtk
 ```
 
 Run `im-config` and choose **fcitx** as the active input method. Log out, log in.
