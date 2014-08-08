@@ -31,7 +31,8 @@ make; sudo make install
 Runtime requirements
 
 ```bash
-sudo apt-get install fcitx fcitx-frontend-{gtk2,gtk3,qt4,qt5} fcitx-ui-classic
+# The --install-recommends flag is IMPORTANT on Mint
+sudo apt-get install --install-recommends fcitx
 
 # If you're on KDE
 sudo apt-get install kde-config-fcitx
