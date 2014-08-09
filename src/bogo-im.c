@@ -89,6 +89,9 @@ static void CommitStringByForwarding(Bogo *self, const char *str);
 static boolean IsGtkAppNotSupportingSurroundingText(char *name);
 static boolean IsQtAppNotSupportingSurroundingText(char *name);
 static void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers);
+static INPUT_RETURN_VALUE HandleDelayedCommit(Bogo *self,
+                                              FcitxKeySym sym,
+                                              unsigned int state);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -207,28 +210,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
 {
     if (strcmp(ProgramName(self), "") == 0 &&
             self->inDelayedMode) {
-
-        if (sym == FcitxKey_BackSpace) {
-            LOG("Our fake backspace");
-            self->backspaceCount--;
-
-            if (self->backspaceCount == 0) {
-                SendKeyEvent(self, FcitxKey_F12, 0);
-            }
-
-            return IRV_FLAG_FORWARD_KEY;
-        } else if (sym == FcitxKey_F12) {
-            LOG("Delayed commit");
-            FcitxInstanceCommitString(
-                        self->fcitx,
-                        FcitxInstanceGetCurrentIC(self->fcitx),
-                        self->stringToCommit);
-            self->inDelayedMode = false;
-            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-        } else {
-            SendKeyEvent(self, sym, state);
-            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-        }
+        return HandleDelayedCommit(self, sym, state);
     }
 
     if (CanProcess(sym, state)) {
@@ -472,6 +454,34 @@ void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers)
                (XEvent *) &event);
 
     XSync(self->display, false);
+}
+
+
+INPUT_RETURN_VALUE HandleDelayedCommit(Bogo *self,
+                                       FcitxKeySym sym,
+                                       unsigned int state)
+{
+    if (sym == FcitxKey_BackSpace) {
+        LOG("Our fake backspace");
+        self->backspaceCount--;
+
+        if (self->backspaceCount == 0) {
+            SendKeyEvent(self, FcitxKey_F12, 0);
+        }
+
+        return IRV_FLAG_FORWARD_KEY;
+    } else if (sym == FcitxKey_F12) {
+        LOG("Delayed commit");
+        FcitxInstanceCommitString(
+                    self->fcitx,
+                    FcitxInstanceGetCurrentIC(self->fcitx),
+                    self->stringToCommit);
+        self->inDelayedMode = false;
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    } else {
+        SendKeyEvent(self, sym, state);
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    }
 }
 
 
