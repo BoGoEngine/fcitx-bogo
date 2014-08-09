@@ -560,11 +560,9 @@ void CommitStringByForwarding(Bogo *self, const char *str)
         len = fcitx_utf8_char_len(str + offset);
         strncpy(chr, str + offset, len);
         chr[len] = 0;
-        LOG("%s %d %d", chr, len, offset);
         
         uint32_t utf32 = Utf8ToUtf32Char(chr);
         FcitxKeySym keysym = FcitxUnicodeToKeySym(utf32);
-        LOG("%d", keysym);
         
         FcitxInstanceForwardKey(
                     self->fcitx,
