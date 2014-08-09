@@ -59,6 +59,7 @@ typedef enum {
 typedef struct {
     // The handle to talk to fcitx
     FcitxInstance *fcitx;
+    Display *display;
     char *rawString;
     int rawStringLen;
     char *prevConvertedString;
@@ -87,7 +88,7 @@ static DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace);
 static void CommitStringByForwarding(Bogo *self, const char *str);
 static boolean IsGtkAppNotSupportingSurroundingText(char *name);
 static boolean IsQtAppNotSupportingSurroundingText(char *name);
-static void SendKeyEvent(unsigned int keysym, unsigned int modifiers);
+static void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -139,13 +140,17 @@ void* FcitxBogoSetup(FcitxInstance* instance)
     bogo_handle_backspace_func = \
         PyObject_GetAttrString(bogoModule, "handle_backspace");
 
+    bogo->display = XOpenDisplay(NULL);
+
     return bogo;
 }
 
-void FcitxBogoTeardown(void* arg)
+void FcitxBogoTeardown(void *arg)
 {
+    Bogo *self = arg;
     LOG("Destroyed");
     Py_Finalize();
+    XCloseDisplay(self->display);
 }
 
 
@@ -208,7 +213,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             self->backspaceCount--;
 
             if (self->backspaceCount == 0) {
-                SendKeyEvent(FcitxKey_F12, 0);
+                SendKeyEvent(self, FcitxKey_F12, 0);
             }
 
             return IRV_FLAG_FORWARD_KEY;
@@ -221,7 +226,7 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             self->inDelayedMode = false;
             return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
         } else {
-            SendKeyEvent(sym, state);
+            SendKeyEvent(self, sym, state);
             return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
         }
     }
@@ -245,15 +250,15 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
             }
         }
         strcat(self->rawString, sym_utf8);
-    
+
         // Send the raw key sequence to bogo-python to get the
         // converted string.
         PyObject *args, *pyResult;
-    
+
         args = Py_BuildValue("(s)", self->rawString);
         pyResult = PyObject_CallObject(bogo_process_sequence_func,
                                        args);
-    
+
         char *convertedString = strdup(PyUnicode_AsUTF8(pyResult));
         
         Py_DECREF(args);
@@ -267,11 +272,11 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                 strlen(self->prevConvertedString) > 0) {
             PyObject *args, *result, *newConvertedString, *newRawString,
                     *prevConvertedString, *rawString;
-            
+
             prevConvertedString = \
                 PyUnicode_FromString(self->prevConvertedString);
             rawString = PyUnicode_FromString(self->rawString);
-            
+
             args = PyTuple_Pack(2, prevConvertedString, rawString);
 
             result = PyObject_CallObject(bogo_handle_backspace_func,
@@ -425,7 +430,7 @@ DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
         
         int i = 0;
         for (; i < num_backspace; ++i) {
-            SendKeyEvent(FcitxKey_BackSpace, 0);
+            SendKeyEvent(self, FcitxKey_BackSpace, 0);
         }
 
         return DELETE_METHOD_X_SEND_EVENT;
@@ -433,19 +438,18 @@ DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
 }
 
 
-void SendKeyEvent(unsigned int keysym, unsigned int modifiers)
+void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers)
 {
-    Display *display = XOpenDisplay(NULL);
     Window focused_window, root_window;
     int revert_to_return;
     XKeyEvent event;
     
-    XGetInputFocus(display, &focused_window, &revert_to_return);
-    root_window = XDefaultRootWindow(display);
+    XGetInputFocus(self->display, &focused_window, &revert_to_return);
+    root_window = XDefaultRootWindow(self->display);
     
     memset(&event, 0, sizeof(XKeyEvent));
-    event.display = display;
-    event.keycode = XKeysymToKeycode(display, keysym);
+    event.display = self->display;
+    event.keycode = XKeysymToKeycode(self->display, keysym);
     event.state = modifiers;
     event.same_screen = true;
     event.time = CurrentTime;
@@ -453,21 +457,20 @@ void SendKeyEvent(unsigned int keysym, unsigned int modifiers)
     event.root = root_window;
 
     event.type = KeyPress;
-    XSendEvent(display,
+    XSendEvent(self->display,
                focused_window,
                false,
                KeyPressMask,
                (XEvent *) &event);
 
     event.type = KeyRelease;
-    XSendEvent(display,
+    XSendEvent(self->display,
                focused_window,
                false,
                KeyPressMask,
                (XEvent *) &event);
 
-    XSync(display, false);
-    XCloseDisplay(display);
+    XSync(self->display, false);
 }
 
 
