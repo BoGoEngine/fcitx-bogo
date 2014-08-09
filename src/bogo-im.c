@@ -359,7 +359,8 @@ void CommitString(Bogo *self, char *str) {
         // Prev chars deleted by surrounding text and non-gtk 
         // forward key event, commiting as normal.
 
-        if (!IsQtAppNotSupportingSurroundingText(ProgramName(self))) {
+        if (method == DELETE_METHOD_FORWARD_KEY_EVENT &&
+                !IsQtAppNotSupportingSurroundingText(ProgramName(self))) {
             LOG("Delaying");
             // Delay to make sure all the backspaces have been 
             // processed.
