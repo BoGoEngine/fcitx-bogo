@@ -51,7 +51,6 @@ For the KDE config tool:
 
 ## Known issues
 
-- Can't type with Skype on x86_64 systems (need testing on x86).
 - Can't type with Wine apps.
 - Crashes LibreOffice if the **libreoffice-kde** plugin is installed.
 
