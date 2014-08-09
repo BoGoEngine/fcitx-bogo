@@ -5,6 +5,7 @@
 #include <fcitx-utils/utf8.h>
 #include <iconv.h>
 #include <time.h>
+#include <X11/Xlib.h>
 
 #include "config.h"
 #include "python3compat.h"
@@ -49,8 +50,9 @@ static PyObject *bogo_handle_backspace_func;
 
 
 typedef enum {
-    DELETE_METHOD_BACKSPACE,
-    DELETE_METHOD_SURROUNDING_TEXT
+    DELETE_METHOD_SURROUNDING_TEXT,
+    DELETE_METHOD_FORWARD_KEY_EVENT,
+    DELETE_METHOD_X_SEND_EVENT
 } DELETE_METHOD;
 
 
@@ -59,8 +61,10 @@ typedef struct {
     FcitxInstance *fcitx;
     char *rawString;
     int rawStringLen;
-    
     char *prevConvertedString;
+    char *stringToCommit;
+    int backspaceCount;
+    boolean inDelayedMode;
 } Bogo;
 
 int Utf32ToUtf8Char(const uint32_t c, char buf[UTF8_MAX_LENGTH + 1]);
@@ -83,6 +87,7 @@ static DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace);
 static void CommitStringByForwarding(Bogo *self, const char *str);
 static boolean IsGtkAppNotSupportingSurroundingText(char *name);
 static boolean IsQtAppNotSupportingSurroundingText(char *name);
+static void SendKeyEvent(unsigned int keysym, unsigned int modifiers);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -150,6 +155,7 @@ void BogoInitialize(Bogo *self) {
     self->rawString = malloc(INITIAL_STRING_LEN);
     self->rawString[0] = 0;
     self->rawStringLen = INITIAL_STRING_LEN;
+    self->stringToCommit = 0;
 }
 
 
@@ -194,6 +200,32 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
                                   FcitxKeySym sym,
                                   unsigned int state)
 {
+    if (strcmp(ProgramName(self), "") == 0 &&
+            self->inDelayedMode) {
+
+        if (sym == FcitxKey_BackSpace) {
+            LOG("Our fake backspace");
+            self->backspaceCount--;
+
+            if (self->backspaceCount == 0) {
+                SendKeyEvent(FcitxKey_F12, 0);
+            }
+
+            return IRV_FLAG_FORWARD_KEY;
+        } else if (sym == FcitxKey_F12) {
+            LOG("Delayed commit");
+            FcitxInstanceCommitString(
+                        self->fcitx,
+                        FcitxInstanceGetCurrentIC(self->fcitx),
+                        self->stringToCommit);
+            self->inDelayedMode = false;
+            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        } else {
+            SendKeyEvent(sym, state);
+            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        }
+    }
+
     if (CanProcess(sym, state)) {
         // Convert the keysym to UTF8
         char sym_utf8[UTF8_MAX_LENGTH + 1];
@@ -299,13 +331,30 @@ void CommitString(Bogo *self, char *str) {
 
     char *string_to_commit = str + byte_offset;
     
-    if (IsGtkAppNotSupportingSurroundingText(ProgramName(self))) {
+    if (method == DELETE_METHOD_X_SEND_EVENT) {
+        // XSendEvent works totally outside of the XIM protocol so
+        // there is a serious sync problem. We'll not commit right now
+        // but delay until all the sent backspaces got processed.
+
+        self->stringToCommit = string_to_commit;
+
+        // One extra unit in the count. The last one will trigger
+        // the commit.
+        self->backspaceCount = num_backspace;
+        self->inDelayedMode = true;
+    } else if (method == DELETE_METHOD_FORWARD_KEY_EVENT &&
+               IsGtkAppNotSupportingSurroundingText(ProgramName(self))) {
+        // Gtk apps have a sync issue with forward key event and normal
+        // string committing, so we commit by forwarding each character
+        // in the committed string.
+
         LOG("Commit string by forwarding");
         CommitStringByForwarding(self, string_to_commit);
     } else {
-        if (method == DELETE_METHOD_BACKSPACE &&
-            !IsQtAppNotSupportingSurroundingText(ProgramName(self)))
-        {
+        // Prev chars deleted by surrounding text and non-gtk 
+        // forward key event, commiting as normal.
+
+        if (!IsQtAppNotSupportingSurroundingText(ProgramName(self))) {
             LOG("Delaying");
             // Delay to make sure all the backspaces have been 
             // processed.
@@ -335,6 +384,10 @@ void CommitString(Bogo *self, char *str) {
 
 DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
 {
+    if (num_backspace <= 0) {
+        return DELETE_METHOD_SURROUNDING_TEXT;
+    }
+
     FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
     if (SupportSurroundingText(self)) {
         LOG("Delete surrounding text");
@@ -344,8 +397,10 @@ DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
                     -num_backspace,
                     num_backspace);
         return DELETE_METHOD_SURROUNDING_TEXT;
-    } else {
-        LOG("Send backspaces");
+    } else if (strcmp(ProgramName(self), "") != 0) {
+        // This should be used by Gtk/Qt app not supporting
+        // surrounding text.
+        LOG("Send backspaces by forwarding");
         int i = 0;
         for (; i < num_backspace; ++i) {
             FcitxInstanceForwardKey(
@@ -354,7 +409,7 @@ DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
                         FCITX_PRESS_KEY,
                         FcitxKey_BackSpace,
                         0);
-            
+
             FcitxInstanceForwardKey(
                         self->fcitx,
                         ic,
@@ -362,8 +417,57 @@ DELETE_METHOD DeletePreviousChars(Bogo *self, int num_backspace)
                         FcitxKey_BackSpace,
                         0);
         }
-        return DELETE_METHOD_BACKSPACE;
+        return DELETE_METHOD_FORWARD_KEY_EVENT;
+    } else {
+        // So ProgramName is "", that means we're dealing with apps
+        // connecting through XIM.
+        LOG("Send backspace by XSendEvent");
+        
+        int i = 0;
+        for (; i < num_backspace; ++i) {
+            SendKeyEvent(FcitxKey_BackSpace, 0);
+        }
+
+        return DELETE_METHOD_X_SEND_EVENT;
     }
+}
+
+
+void SendKeyEvent(unsigned int keysym, unsigned int modifiers)
+{
+    Display *display = XOpenDisplay(NULL);
+    Window focused_window, root_window;
+    int revert_to_return;
+    XKeyEvent event;
+    
+    XGetInputFocus(display, &focused_window, &revert_to_return);
+    root_window = XDefaultRootWindow(display);
+    
+    memset(&event, 0, sizeof(XKeyEvent));
+    event.display = display;
+    event.keycode = XKeysymToKeycode(display, keysym);
+    event.state = modifiers;
+    event.same_screen = true;
+    event.time = CurrentTime;
+    event.window = focused_window;
+    event.root = root_window;
+
+    event.type = KeyPress;
+    XSendEvent(display,
+               focused_window,
+               false,
+               KeyPressMask,
+               (XEvent *) &event);
+
+    event.type = KeyRelease;
+    XSendEvent(display,
+               focused_window,
+               false,
+               KeyPressMask,
+               (XEvent *) &event);
+
+    XSync(display, false);
+    XCloseDisplay(display);
 }
 
 

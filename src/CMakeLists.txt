@@ -5,6 +5,7 @@ ${FCITX4_FCITX_UTILS_INCLUDE_DIRS}
 ${PROJECT_BINARY_DIR}
 ${LIBICONV_INCLUDE_DIR}
 ${PYTHON_INCLUDE_DIRS}
+${X11_INCLUDE_DIR}
 )
 
 set(fcitx_bogo_sources
@@ -21,3 +22,4 @@ fcitx_add_addon_full(bogo
    )
 
 target_link_libraries(fcitx-bogo ${PYTHON_LIBRARIES})
+target_link_libraries(fcitx-bogo ${X11_LIBRARIES})

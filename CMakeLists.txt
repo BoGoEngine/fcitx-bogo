@@ -23,6 +23,7 @@ set(CMAKE_C_FLAGS_DEBUG "-DDEBUG")
 find_package(Fcitx 4.2.8 REQUIRED)
 find_package(Libiconv REQUIRED)
 find_package(PythonLibs 2.7 REQUIRED)
+find_package(X11 REQUIRED)
 
 set(DATA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/fcitx-bogo)
 
