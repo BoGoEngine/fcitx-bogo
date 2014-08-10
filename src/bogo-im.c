@@ -271,7 +271,7 @@ INPUT_RETURN_VALUE HandleBackspace(Bogo *self)
 {
     if (strlen(self->rawString) > 0 &&
             strlen(self->prevConvertedString) > 0) {
-        PyObject *args, *result, *newConvertedString, *newRawString,
+        PyObject *args, *newConvertedString, *newRawString,
                 *prevConvertedString, *rawString;
 
         prevConvertedString = \
@@ -280,18 +280,21 @@ INPUT_RETURN_VALUE HandleBackspace(Bogo *self)
 
         args = PyTuple_Pack(2, prevConvertedString, rawString);
 
-        result = PyObject_CallObject(bogo_handle_backspace_func,
-                                     args);
+        newRawString = PyObject_CallObject(bogo_handle_backspace_func,
+                                           args);
 
-        newConvertedString = PyTuple_GetItem(result, 0);
-        newRawString = PyTuple_GetItem(result, 1);
+        Py_DECREF(args);
 
-        strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+        args = PyTuple_Pack(1, newRawString);
+        newConvertedString = \
+            PyObject_CallObject(bogo_process_sequence_func, args);
+
         CommitString(self,
                      strdup(PyUnicode_AsUTF8(newConvertedString)));
 
-        Py_DECREF(result);
-        Py_DECREF(args);
+        strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+        Py_DECREF(newConvertedString);
+        Py_DECREF(newRawString);
 
         return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
     } else {
