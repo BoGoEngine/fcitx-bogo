@@ -92,6 +92,8 @@ static void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers
 static INPUT_RETURN_VALUE HandleDelayedCommit(Bogo *self,
                                               FcitxKeySym sym,
                                               unsigned int state);
+static INPUT_RETURN_VALUE HandleBackspace(Bogo *self);
+static INPUT_RETURN_VALUE HandleNormalKeyPress(Bogo *self, char *key);
 
 
 void* FcitxBogoSetup(FcitxInstance* instance)
@@ -220,68 +222,80 @@ INPUT_RETURN_VALUE BogoOnKeyPress(Bogo *self,
     
         Utf32ToUtf8Char(sym, sym_utf8);
         LOG("keysym: %s", sym_utf8);
-    
-        // Append the key to raw_string
-        if (strlen(self->rawString) + strlen(sym_utf8) > 
-                self->rawStringLen) {
-            char *tmp = realloc(self->rawString,
-                                self->rawStringLen * 2);
-            if (tmp != NULL) {
-                self->rawString = tmp;
-                self->rawStringLen = self->rawStringLen * 2;
-            }
-        }
-        strcat(self->rawString, sym_utf8);
-
-        // Send the raw key sequence to bogo-python to get the
-        // converted string.
-        PyObject *args, *pyResult;
-
-        args = Py_BuildValue("(s)", self->rawString);
-        pyResult = PyObject_CallObject(bogo_process_sequence_func,
-                                       args);
-
-        char *convertedString = strdup(PyUnicode_AsUTF8(pyResult));
         
-        Py_DECREF(args);
-        Py_DECREF(pyResult);
-
-        CommitString(self, convertedString);
-
-        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+        return HandleNormalKeyPress(self, sym_utf8);
     } else if (sym == FcitxKey_BackSpace) {
-        if (strlen(self->rawString) > 0 &&
-                strlen(self->prevConvertedString) > 0) {
-            PyObject *args, *result, *newConvertedString, *newRawString,
-                    *prevConvertedString, *rawString;
-
-            prevConvertedString = \
-                PyUnicode_FromString(self->prevConvertedString);
-            rawString = PyUnicode_FromString(self->rawString);
-
-            args = PyTuple_Pack(2, prevConvertedString, rawString);
-
-            result = PyObject_CallObject(bogo_handle_backspace_func,
-                                         args);
-
-            newConvertedString = PyTuple_GetItem(result, 0);
-            newRawString = PyTuple_GetItem(result, 1);
-
-            strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
-            CommitString(self,
-                         strdup(PyUnicode_AsUTF8(newConvertedString)));
-
-            Py_DECREF(result);
-            Py_DECREF(args);
-
-            return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-        } else {
-            BogoOnReset(self);
-            return IRV_FLAG_FORWARD_KEY;
-        }
+        return HandleBackspace(self);
     } else {
         BogoOnReset(self);
         return IRV_TO_PROCESS;
+    }
+}
+
+
+INPUT_RETURN_VALUE HandleNormalKeyPress(Bogo *self, char *key)
+{
+    // Append the key to raw_string
+    if (strlen(self->rawString) + strlen(key) > 
+            self->rawStringLen) {
+        char *tmp = realloc(self->rawString,
+                            self->rawStringLen * 2);
+        if (tmp != NULL) {
+            self->rawString = tmp;
+            self->rawStringLen = self->rawStringLen * 2;
+        }
+    }
+    strcat(self->rawString, key);
+
+    // Send the raw key sequence to bogo-python to get the
+    // converted string.
+    PyObject *args, *pyResult;
+
+    args = Py_BuildValue("(s)", self->rawString);
+    pyResult = PyObject_CallObject(bogo_process_sequence_func,
+                                   args);
+
+    char *convertedString = strdup(PyUnicode_AsUTF8(pyResult));
+    
+    Py_DECREF(args);
+    Py_DECREF(pyResult);
+
+    CommitString(self, convertedString);
+
+    return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+}
+
+
+INPUT_RETURN_VALUE HandleBackspace(Bogo *self)
+{
+    if (strlen(self->rawString) > 0 &&
+            strlen(self->prevConvertedString) > 0) {
+        PyObject *args, *result, *newConvertedString, *newRawString,
+                *prevConvertedString, *rawString;
+
+        prevConvertedString = \
+            PyUnicode_FromString(self->prevConvertedString);
+        rawString = PyUnicode_FromString(self->rawString);
+
+        args = PyTuple_Pack(2, prevConvertedString, rawString);
+
+        result = PyObject_CallObject(bogo_handle_backspace_func,
+                                     args);
+
+        newConvertedString = PyTuple_GetItem(result, 0);
+        newRawString = PyTuple_GetItem(result, 1);
+
+        strcpy(self->rawString, PyUnicode_AsUTF8(newRawString));
+        CommitString(self,
+                     strdup(PyUnicode_AsUTF8(newConvertedString)));
+
+        Py_DECREF(result);
+        Py_DECREF(args);
+
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    } else {
+        BogoOnReset(self);
+        return IRV_FLAG_FORWARD_KEY;
     }
 }
 
