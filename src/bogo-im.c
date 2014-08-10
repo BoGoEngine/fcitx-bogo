@@ -586,7 +586,7 @@ boolean IsGtkAppNotSupportingSurroundingText(char *name)
 boolean IsQtAppNotSupportingSurroundingText(char *name)
 {
     char *names[] = {
-        "konsole"
+        "konsole", "webbrowser-app"
     };
 
     return IsStringInCollection(name,
