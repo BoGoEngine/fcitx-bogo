@@ -379,9 +379,6 @@ void CommitString(Bogo *self, char *str) {
         // but delay until all the sent backspaces got processed.
 
         self->stringToCommit = string_to_commit;
-
-        // One extra unit in the count. The last one will trigger
-        // the commit.
         self->backspaceCount = num_backspace;
         self->inDelayedMode = true;
     } else if (method == DELETE_METHOD_FORWARD_KEY_EVENT &&
