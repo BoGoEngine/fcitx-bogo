@@ -15,16 +15,17 @@ Build requirements
 ```bash
 # CMake
 # Python 2.7 (or higher) development headers
+# libX11 development headers
 # Fcitx development headers
 
-sudo apt-get install cmake fcitx-libs-dev python2.7-dev build-essential
+sudo apt-get install cmake fcitx-libs-dev python2.7-dev libx11-dev build-essential
 ```
 
 Build and install
 
 ```bash
 mkdir build; cd build
-cmake -DPYTHON_EXECUTABLE=$(which python2.7) ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DPYTHON_EXECUTABLE=$(which python2.7) ..
 make; sudo make install
 ```
 
