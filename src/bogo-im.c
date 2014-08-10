@@ -150,6 +150,7 @@ void* FcitxBogoSetup(FcitxInstance* instance)
     return bogo;
 }
 
+
 void FcitxBogoTeardown(void *arg)
 {
     Bogo *self = arg;
@@ -297,6 +298,46 @@ INPUT_RETURN_VALUE HandleBackspace(Bogo *self)
         BogoOnReset(self);
         return IRV_FLAG_FORWARD_KEY;
     }
+}
+
+
+INPUT_RETURN_VALUE HandleDelayedCommit(Bogo *self,
+                                       FcitxKeySym sym,
+                                       unsigned int state)
+{
+    if (sym == FcitxKey_BackSpace) {
+        LOG("Our fake backspace");
+        self->backspaceCount--;
+
+        if (self->backspaceCount == 0) {
+            SendKeyEvent(self, FcitxKey_F12, 0);
+        }
+
+        return IRV_FLAG_FORWARD_KEY;
+    } else if (sym == FcitxKey_F12) {
+        LOG("Delayed commit");
+        FcitxInstanceCommitString(
+                    self->fcitx,
+                    FcitxInstanceGetCurrentIC(self->fcitx),
+                    self->stringToCommit);
+        self->inDelayedMode = false;
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    } else {
+        SendKeyEvent(self, sym, state);
+        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+    }
+}
+
+
+void BogoOnSave(Bogo *self)
+{
+    LOG("Saved");
+}
+
+
+void BogoOnConfig(Bogo *self)
+{
+    LOG("Reload config");
 }
 
 
@@ -471,42 +512,37 @@ void SendKeyEvent(Bogo *self, unsigned int keysym, unsigned int modifiers)
 }
 
 
-INPUT_RETURN_VALUE HandleDelayedCommit(Bogo *self,
-                                       FcitxKeySym sym,
-                                       unsigned int state)
+void CommitStringByForwarding(Bogo *self, const char *str)
 {
-    if (sym == FcitxKey_BackSpace) {
-        LOG("Our fake backspace");
-        self->backspaceCount--;
+    int len;
+    char chr[UTF8_MAX_LENGTH + 1];
+    FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
+    int offset = 0;
 
-        if (self->backspaceCount == 0) {
-            SendKeyEvent(self, FcitxKey_F12, 0);
-        }
-
-        return IRV_FLAG_FORWARD_KEY;
-    } else if (sym == FcitxKey_F12) {
-        LOG("Delayed commit");
-        FcitxInstanceCommitString(
+    while(str[offset] != 0) {
+        len = fcitx_utf8_char_len(str + offset);
+        strncpy(chr, str + offset, len);
+        chr[len] = 0;
+        
+        uint32_t utf32 = Utf8ToUtf32Char(chr);
+        FcitxKeySym keysym = FcitxUnicodeToKeySym(utf32);
+        
+        FcitxInstanceForwardKey(
                     self->fcitx,
-                    FcitxInstanceGetCurrentIC(self->fcitx),
-                    self->stringToCommit);
-        self->inDelayedMode = false;
-        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
-    } else {
-        SendKeyEvent(self, sym, state);
-        return IRV_FLAG_BLOCK_FOLLOWING_PROCESS;
+                    ic,
+                    FCITX_PRESS_KEY,
+                    keysym,
+                    0);
+        
+        FcitxInstanceForwardKey(
+                    self->fcitx,
+                    ic,
+                    FCITX_RELEASE_KEY,
+                    keysym,
+                    0);
+
+        offset += len;
     }
-}
-
-
-void BogoOnSave(Bogo *self)
-{
-    LOG("Saved");
-}
-
-void BogoOnConfig(Bogo *self)
-{
-    LOG("Reload config");
 }
 
 
@@ -546,6 +582,7 @@ boolean IsGtkAppNotSupportingSurroundingText(char *name)
                                 sizeof(names) / sizeof(char *));
 }
 
+
 boolean IsQtAppNotSupportingSurroundingText(char *name)
 {
     char *names[] = {
@@ -570,40 +607,6 @@ boolean SupportSurroundingText(Bogo *self)
     return support && 
            !IsGtkAppNotSupportingSurroundingText(prgname) &&
            !IsQtAppNotSupportingSurroundingText(prgname);
-}
-
-
-void CommitStringByForwarding(Bogo *self, const char *str)
-{
-    int len;
-    char chr[UTF8_MAX_LENGTH + 1];
-    FcitxInputContext *ic = FcitxInstanceGetCurrentIC(self->fcitx);
-    int offset = 0;
-
-    while(str[offset] != 0) {
-        len = fcitx_utf8_char_len(str + offset);
-        strncpy(chr, str + offset, len);
-        chr[len] = 0;
-        
-        uint32_t utf32 = Utf8ToUtf32Char(chr);
-        FcitxKeySym keysym = FcitxUnicodeToKeySym(utf32);
-        
-        FcitxInstanceForwardKey(
-                    self->fcitx,
-                    ic,
-                    FCITX_PRESS_KEY,
-                    keysym,
-                    0);
-        
-        FcitxInstanceForwardKey(
-                    self->fcitx,
-                    ic,
-                    FCITX_RELEASE_KEY,
-                    keysym,
-                    0);
-
-        offset += len;
-    }
 }
 
 
