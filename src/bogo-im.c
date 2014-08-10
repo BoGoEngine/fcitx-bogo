@@ -573,8 +573,9 @@ boolean IsStringInCollection(char *str, char **collection, int length)
 boolean IsGtkAppNotSupportingSurroundingText(char *name)
 {
     char *names[] = {
-        "firefox", "terminator", "gnome-terminal-", "mate-terminal",
-        "lxterminal", "geany", "inkscape", "gvim"
+        "firefox", "terminator", "gnome-terminal", "gnome-terminal-",
+        "mate-terminal", "lxterminal", "geany", "inkscape", "gvim",
+        "gnome-shell",
     };
 
     return IsStringInCollection(name,
