@@ -617,7 +617,7 @@ int Utf32ToUtf8Char(const uint32_t c, char buf[UTF8_MAX_LENGTH + 1])
     str[0] = c;
     str[1] = 0;
     
-    iconv_t *conv;
+    iconv_t conv;
     
     union {
         short s;
@@ -645,7 +645,7 @@ int Utf32ToUtf8Char(const uint32_t c, char buf[UTF8_MAX_LENGTH + 1])
 
 uint32_t Utf8ToUtf32Char(char *src)
 {
-    iconv_t *conv;
+    iconv_t conv;
 
     union {
         short s;
@@ -662,9 +662,9 @@ uint32_t Utf8ToUtf32Char(char *src)
     
     size_t inLength = UTF8_MAX_LENGTH + 1;
     size_t outLength = sizeof(uint32_t);
-    IconvStr buff = (IconvStr) output;
+    char* buff = (char*) output;
 
-    iconv(conv, &src, &inLength, &buff, &outLength);
+    iconv(conv, (IconvStr*)&src, &inLength, &buff, &outLength);
     
     iconv_close(conv);
     return output[0];
